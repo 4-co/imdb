@@ -25,7 +25,7 @@ namespace imdb_import
             // the bulk load APIs should be used for large loads
 
             // make sure the args were passed in
-            if (args.Length != 4)
+            if (args.Length != 4 && args.Length != 6)
             {
                 Usage();
                 Environment.Exit(-1);
@@ -37,7 +37,16 @@ namespace imdb_import
             string cosmosUrl = string.Format("https://{0}.documents.azure.com:443/", args[0].Trim().ToLower());
             string cosmosKey = args[1].Trim();
             string cosmosDatabase = args[2].Trim();
-            string cosmosCollection = args[3].Trim();
+            string actorsCollection = args[3].Trim();
+            string genresCollection = args[3].Trim();
+            string moviesCollection = args[3].Trim();
+
+            if (args.Length > 4)
+            {
+                genresCollection = args[4].Trim();
+                moviesCollection = args[5].Trim();
+            }
+
 
             // increase timeout and number of retries
             ConnectionPolicy cp = new ConnectionPolicy
@@ -58,7 +67,7 @@ namespace imdb_import
             await client.OpenAsync();
 
             // create the collection link
-            collectionLink = UriFactory.CreateDocumentCollectionUri(cosmosDatabase, cosmosCollection);
+            collectionLink = UriFactory.CreateDocumentCollectionUri(cosmosDatabase, actorsCollection);
 
             // load actors from the json files
             // actors is the largest file so we load actors first
@@ -77,22 +86,26 @@ namespace imdb_import
             // load actors batchSize documents at a time
             for (int i = 0; i < max; i++)
             {
-                tasks.Add(LoadData(Actors, i * batchSize, batchSize));
+                tasks.Add(LoadData(collectionLink, Actors, i * batchSize, batchSize));
             }
 
             // load remaining actors
             if (Actors.Count > max * batchSize)
             {
-                tasks.Add(LoadData(Actors, max * batchSize, Actors.Count - max * batchSize));
+                tasks.Add(LoadData(collectionLink, Actors, max * batchSize, Actors.Count - max * batchSize));
             }
+
+            collectionLink = UriFactory.CreateDocumentCollectionUri(cosmosDatabase, moviesCollection);
 
             // load movies
             List<dynamic> Movies = JsonConvert.DeserializeObject<List<dynamic>>(File.ReadAllText(@"data/movies.json"));
-            tasks.Add(LoadData(Movies, 0, Movies.Count));
+            tasks.Add(LoadData(collectionLink, Movies, 0, Movies.Count));
+
+            collectionLink = UriFactory.CreateDocumentCollectionUri(cosmosDatabase, genresCollection);
 
             // load genres
             List<dynamic> Genres = JsonConvert.DeserializeObject<List<dynamic>>(File.ReadAllText(@"data/genres.json"));
-            tasks.Add(LoadData(Genres, 0, Genres.Count));
+            tasks.Add(LoadData(collectionLink, Genres, 0, Genres.Count));
 
             // wait for tasks to finish
             Task.WaitAll(tasks.ToArray());
@@ -101,7 +114,7 @@ namespace imdb_import
             Console.WriteLine("Documents Loaded: {0}\n\nTotal Retries: {1}", count, retryCount);
         }
 
-        static async Task LoadData(List<dynamic> list, int start, int length)
+        static async Task LoadData(Uri colLink, List<dynamic> list, int start, int length)
         {
             // load data worker
 
@@ -114,7 +127,7 @@ namespace imdb_import
                 try
                 {
                     // this will throw an exception if we exceed RUs
-                    await client.UpsertDocumentAsync(collectionLink, list[i]);
+                    await client.UpsertDocumentAsync(colLink, list[i]);
                     i++;
                     IncrementRowCount();
                 }
@@ -152,7 +165,7 @@ namespace imdb_import
 
         static void Usage()
         {
-            Console.WriteLine("Usage: imdb-import Name Key Database Collection");
+            Console.WriteLine("Usage: imdb-import Name Key Database [Collection][ActorCollection GenreCollection MovieCollection]");
         }
     }
 }
