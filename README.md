@@ -42,6 +42,9 @@ az group create -n $Imdb_RG -l $Imdb_Location
 # create the CosmosDB server
 az cosmosdb create  -g $Imdb_RG -n $Imdb_Name > ~/cosmos.log
 
+# export readwrite key
+export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
+
 # create the database
 az cosmosdb database create -d imdb -g $Imdb_RG -n $Imdb_Name
 
@@ -51,11 +54,19 @@ az cosmosdb database create -d imdb -g $Imdb_RG -n $Imdb_Name
 # partiton key is the id mod 10
 az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
 
-# get readwrite key
-export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
-
 # run the docker IMDb Import app
-docker run -it --rm fourco/imdb-import $Imdb_Name $Imdb_Key imdb movies
+az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
+
+### Spring Boot Instructions
+# Spring Boot only supports one document type per collection so you have to create and load in separate collections
+
+# create 3 collections
+az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c actors
+az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c genres
+az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
+
+# load the data into 3 collections
+az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c actors genres movies
 
 ```
 
@@ -70,7 +81,7 @@ In considering the design, we wanted to follow document design best practices as
 
 ## One Collection
 
-We chose to include different document types in the same collection for simplicity (and to demonstrate). You can read about some of the tradeoffs [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data) and see some of the side effects in the queries below.
+We chose to include different document types in the same collection for simplicity (and to demonstrate). You can read about some of the tradeoffs [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data) and see some of the side effects in the queries below. Note that some frameworks (like Spring Boot) require a separate collection for each document type.
 
 Each document has a type field that is one of: Movie, Actor or Genre
 
@@ -82,11 +93,11 @@ The CosmosDB partition key used is /partitionKey and is computed by taking the i
 
 Note: the partition key must be a string
 
-Note: Genres use a partitionKey of 0 as there are only 19 Genres
+Note: Genres use a partitionKey of "0" as there are only 19 Genres
 
 You want your partition key to be well distributed from a storage and usage perspective. For Actors, a good partition key could be birthYear mod x. However, this would likely not be a good partition key for Movies as a high percentage of the requests are likely to be for the current year which would create a hot partition. A hash of the title would likely be a good choice. movieId (and actorId) are integers with a character preface (tt or nm), so a mod x on the integer portion is a good choice as well and the one we chose.
 
-In order to use the CosmosDB API to read a single 1K document using 1 RU, you need to know the partition key, so having a value that you can compute the partition key from is a best practice.
+In order to use the CosmosDB API to read a single 1K document using 1 RU, you need to know the partition key, so having a value that you can compute the partition key from is a best practice. Note that some frameworks (like Spring Boot) don't support the single document read API and always use the query API. This can have a significant cost impact depending on the access pattern.
 
 You want to avoid cross-partition queries when possible as they incur additional work which increases the RUs and cost.
 
