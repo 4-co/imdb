@@ -62,7 +62,7 @@ docker run -it --rm fourco/imdb-import $Imdb_Name $Imdb_Key imdb movies
 
 # create 4 collections
 az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c actors
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c features
+az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c featured
 az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c genres
 az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
 
