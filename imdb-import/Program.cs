@@ -44,7 +44,7 @@ namespace ImdbImport
             // the bulk load APIs should be used for large loads
 
             // make sure the args were passed in
-            if (args.Length != 4 && args.Length != 6)
+            if (args.Length != 5 && args.Length != 8)
             {
                 Usage();
                 Environment.Exit(-1);
@@ -53,63 +53,58 @@ namespace ImdbImport
             Console.WriteLine("Loading Data ...\n");
 
             // get the Cosmos values from args[]
-            string cosmosUrl = string.Format("https://{0}.documents.azure.com:443/", args[0].Trim().ToLower());
-            string cosmosKey = args[1].Trim();
-            string cosmosDatabase = args[2].Trim();
-            string actorsCollection = args[3].Trim();
-            string genresCollection = args[3].Trim();
-            string moviesCollection = args[3].Trim();
-            string featuredCollection = args[3].Trim();
+            string cosmosUrl = string.Format("https://{0}.documents.azure.com:443/", args[1].Trim().ToLower());
+            string cosmosKey = args[2].Trim();
+            string cosmosDatabase = args[3].Trim();
+            string actorsCollection = args[4].Trim();
+            string genresCollection = args[4].Trim();
+            string moviesCollection = args[4].Trim();
+            string featuredCollection = args[4].Trim();
 
-            if (args.Length > 4)
+            if (args.Length == 8)
             {
-                if (args.Length < 7)
+                featuredCollection = args[5].Trim();
+                genresCollection = args[6].Trim();
+                moviesCollection = args[7].Trim();
+            }
+
+            try
+            {
+                string path = GetFilePath(args[0]);
+
+                client = await OpenCosmosClient(cosmosUrl, cosmosKey, cosmosDatabase, moviesCollection);
+
+                // load featured
+                LoadFile(path + "featured.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, featuredCollection));
+
+                // load genres
+                LoadFile(path + "genres.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, genresCollection));
+
+                // load movies
+                LoadFile(path + "movies.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, moviesCollection));
+
+                // load actors
+                LoadFile(path + "actors.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, actorsCollection));
+
+                // wait for tasks to finish
+                Task.WaitAll(tasks.ToArray());
+
+                // done
+                TimeSpan elapsed = DateTime.Now.Subtract(startTime);
+                Console.WriteLine("\nDocuments Loaded: {0}", count);
+                Console.Write("    Elasped Time: ");
+                if (elapsed.TotalHours >= 1.0)
                 {
-                    Console.WriteLine("Check the command line arguments");
-                    Usage();
-                    return;
+                    Console.Write("{0:00':'}", elapsed.TotalHours);
                 }
-
-                featuredCollection = args[4].Trim();
-                genresCollection = args[5].Trim();
-                moviesCollection = args[6].Trim();
+                Console.WriteLine(elapsed.ToString("mm':'ss"));
+                Console.WriteLine("     rows/second: {0:0.00}", count / DateTime.Now.Subtract(startTime).TotalSeconds);
+                Console.WriteLine("         Retries: {0}", retryCount);
             }
-
-
-            client = await OpenCosmosClient(cosmosUrl, cosmosKey);
-
-            string path = GetFilePath();
-
-            // load genres
-            LoadFile(path + "genres.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, genresCollection));
-
-            // load featured
-            LoadFile(path + "featured.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, featuredCollection));
-
-            // load movies
-            LoadFile(path + "movies.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, moviesCollection));
-
-            // load actors
-            LoadFile(path + "actors.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, actorsCollection));
-
-            // wait for tasks to finish
-            Task.WaitAll(tasks.ToArray());
-
-            Console.WriteLine(tasks.Count);
-
-            TimeSpan elapsed = DateTime.Now.Subtract(startTime);
-
-            // done
-            Console.WriteLine();
-            Console.WriteLine("Documents Loaded: {0}", count);
-            Console.Write("    Elasped Time: ");
-            if (elapsed.TotalHours >= 1.0)
+            catch (Exception ex)
             {
-                Console.Write("{0:00':'}", elapsed.TotalHours);
+                Console.WriteLine(ex.Message);
             }
-            Console.WriteLine(elapsed.ToString("mm':'ss"));
-            Console.WriteLine("     rows/second: {0:0.00}", count / DateTime.Now.Subtract(startTime).TotalSeconds);
-            Console.WriteLine("         Retries: {0}", retryCount);
         }
 
         static void WaitForLoader()
@@ -159,15 +154,15 @@ namespace ImdbImport
             }
         }
 
-        static string GetFilePath()
+        static string GetFilePath(string dataDirectory)
         {
             // find the data files (different with dotnet run and running in VS)
 
-            string path = "data/";
+            string path = "data/" + dataDirectory + "/";
 
             if (!File.Exists(path + "genres.json"))
             {
-                path = "../../../data/";
+                path = "../../../data/" + dataDirectory + "/";
 
                 if (!File.Exists(path + "genres.json"))
                 {
@@ -179,7 +174,7 @@ namespace ImdbImport
             return path;
         }
 
-        static async Task<DocumentClient> OpenCosmosClient(string cosmosUrl, string cosmosKey)
+        static async Task<DocumentClient> OpenCosmosClient(string cosmosUrl, string cosmosKey, string cosmosDatabase, string cosmosCollection)
         {
             // set min / max concurrent loaders
             SetLoaders();
@@ -201,6 +196,10 @@ namespace ImdbImport
             // open the Cosmos client
             client = new DocumentClient(new Uri(cosmosUrl), cosmosKey, cp);
             await client.OpenAsync();
+
+            // validate database and collection exist
+            var db = await client.ReadDatabaseAsync("/dbs/" + cosmosDatabase);
+            var col = await client.ReadDocumentCollectionAsync("/dbs/" + cosmosDatabase + "/colls/" + cosmosCollection);
 
             return client;
         }
@@ -230,12 +229,11 @@ namespace ImdbImport
             using (System.IO.StreamReader file = new System.IO.StreamReader(path))
             {
                 int count = 0;
-                int maxLines = int.MaxValue;
 
                 string line;
                 List<dynamic> list = new List<dynamic>();
 
-                while ((line = file.ReadLine()) != null && count < maxLines)
+                while ((line = file.ReadLine()) != null)
                 {
                     line = line.Trim();
 
@@ -338,7 +336,7 @@ namespace ImdbImport
 
         static void Usage()
         {
-            Console.WriteLine("Usage: imdb-import Name Key Database [SingleCollection][ActorCollection FeaturedCollection GenreCollection MovieCollection]");
+            Console.WriteLine("Usage: imdb-import dataDirectory Name Key Database [SingleCollection][ActorCollection FeaturedCollection GenreCollection MovieCollection]");
         }
     }
 }
