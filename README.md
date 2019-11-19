@@ -54,8 +54,12 @@ az cosmosdb database create -d imdb -g $Imdb_RG -n $Imdb_Name
 # partiton key is the id mod 10
 az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
 
+# select dataset directory
+# 100Movies or 1300Movies
+export Imdb_DataDir=100Movies
+
 # run the docker IMDb Import app
-docker run -it --rm fourco/imdb-import $Imdb_Name $Imdb_Key imdb movies
+docker run -it --rm fourco/imdb-import $Imdb_DataDir $Imdb_Name $Imdb_Key imdb movies
 
 ### Spring Boot Instructions
 # Spring Boot only supports one document type per collection so you have to create and load in separate collections
@@ -67,7 +71,7 @@ az cosmosdb collection create --throughput 400 --partition-key-path /partitionKe
 az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
 
 # load the data into 4 collections
-docker run -it --rm fourco/imdb-import $Imdb_Name $Imdb_Key imdb actors featured genres movies 
+docker run -it --rm fourco/imdb-import $Imdb_DataDir $Imdb_Name $Imdb_Key imdb actors featured genres movies 
 
 ```
 
