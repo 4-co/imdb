@@ -26,10 +26,10 @@ RUN groupadd -g 4120 imdb && \
 USER imdb
 
 ### copy the data
-COPY data data
+COPY data /data
 
 ### copy the app
-COPY --from=build /app .
+COPY --from=build /app /app
 
 WORKDIR /app
 
