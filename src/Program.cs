@@ -158,13 +158,13 @@ namespace ImdbImport
         {
             // find the data files (different with dotnet run and running in VS)
 
-            string path = "data/" + dataDirectory + "/";
+            string path = "../data/" + dataDirectory + "/";
 
-            if (!File.Exists(path + "genres.json"))
+            if (!Directory.Exists(path))
             {
-                path = "../../../data/" + dataDirectory + "/";
+                path = "../../../" + path;
 
-                if (!File.Exists(path + "genres.json"))
+                if (!Directory.Exists(path))
                 {
                     Console.WriteLine("Can't find data files");
                     Environment.Exit(-1);
