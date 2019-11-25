@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/dotnet/core/sdk:2.2 AS build
 
 
 ### copy the source
-COPY . src
+COPY src src
 
 WORKDIR /src
 
@@ -25,8 +25,11 @@ RUN groupadd -g 4120 imdb && \
 ### run as imdb user
 USER imdb
 
+### copy the data
+COPY data /data
+
 ### copy the app
-COPY --from=build /app .
+COPY --from=build /app /app
 
 WORKDIR /app
 
