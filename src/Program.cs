@@ -20,15 +20,15 @@ namespace ImdbImport
         static readonly DateTime startTime = DateTime.Now;
         static DateTime batchTime = DateTime.Now;
 
-        // limit the number of concurrent load tasks to 3 with a 400 RU collection
+        // limit the number of concurrent load tasks to 6 with a 400 RU collection
         // don't set either below 3
-        static int maxLoaders = 3;
+        static int maxLoaders = 6;
         static int minLoaders = 3;
 
         // set the batch size
         // keep this small or the last load threads will take a long time
-        // 20 is optimal for most situations
-        const int batchSize = 20;
+        // 25 is optimal for most situations
+        const int batchSize = 25;
 
         // worker tasks
         static readonly List<Task> tasks = new List<Task>();
@@ -53,24 +53,24 @@ namespace ImdbImport
             Console.WriteLine("Loading Data ...\n");
 
             // get the Cosmos values from args[]
-            string cosmosUrl = string.Format("https://{0}.documents.azure.com:443/", args[1].Trim().ToLower());
-            string cosmosKey = args[2].Trim();
-            string cosmosDatabase = args[3].Trim();
-            string actorsCollection = args[4].Trim();
-            string genresCollection = args[4].Trim();
-            string moviesCollection = args[4].Trim();
-            string featuredCollection = args[4].Trim();
+            string cosmosUrl = string.Format("https://{0}.documents.azure.com:443/", args[0].Trim().ToLower());
+            string cosmosKey = args[1].Trim();
+            string cosmosDatabase = args[2].Trim();
+            string actorsCollection = args[3].Trim();
+            string genresCollection = args[3].Trim();
+            string moviesCollection = args[3].Trim();
+            string featuredCollection = args[3].Trim();
 
-            if (args.Length == 8)
+            if (args.Length == 7)
             {
-                featuredCollection = args[5].Trim();
-                genresCollection = args[6].Trim();
-                moviesCollection = args[7].Trim();
+                featuredCollection = args[4].Trim();
+                genresCollection = args[5].Trim();
+                moviesCollection = args[6].Trim();
             }
 
             try
             {
-                string path = GetFilePath(args[0]);
+                string path = GetDataFilesPath();
 
                 client = await OpenCosmosClient(cosmosUrl, cosmosKey, cosmosDatabase, moviesCollection);
 
@@ -109,56 +109,38 @@ namespace ImdbImport
 
         static void WaitForLoader()
         {
-            // semaphores are about 30% slower
-            // we don't need thread sync as one thread starts all the jobs
-            // so the default is false
-            bool useSemaphore = false;
-
-            if (useSemaphore)
+            // only start a new loader task if there are < maxLoaders running
+            if (tasks.Count < maxLoaders)
             {
-                if (sem == null)
-                {
-                    sem = new Semaphore(0, maxLoaders);
-                }
-
-                sem.WaitOne();
+                return;
             }
 
-            else
+            // loop until a loader is available
+            while (true)
             {
-                // only start a new loader task if there are < maxLoaders running
+                // remove completed tasks
+                for (int i = tasks.Count - 1; i >= 0; i--)
+                {
+                    if (tasks[i].IsCompleted)
+                    {
+                        tasks.RemoveAt(i);
+                    }
+                }
+
                 if (tasks.Count < maxLoaders)
                 {
                     return;
                 }
 
-                // loop until a loader is available
-                while (true)
-                {
-                    // remove completed tasks
-                    for (int i = tasks.Count - 1; i >= 0; i--)
-                    {
-                        if (tasks[i].IsCompleted)
-                        {
-                            tasks.RemoveAt(i);
-                        }
-                    }
-
-                    if (tasks.Count < maxLoaders)
-                    {
-                        return;
-                    }
-
-                    System.Threading.Thread.Sleep(100);
-                }
+                System.Threading.Thread.Sleep(100);
             }
         }
 
-        static string GetFilePath(string dataDirectory)
+        static string GetDataFilesPath()
         {
             // find the data files (different with dotnet run and running in VS)
 
-            string path = "../data/" + dataDirectory + "/";
+            string path = "../data/" ;
 
             if (!Directory.Exists(path))
             {
@@ -198,8 +180,8 @@ namespace ImdbImport
             await client.OpenAsync();
 
             // validate database and collection exist
-            var db = await client.ReadDatabaseAsync("/dbs/" + cosmosDatabase);
-            var col = await client.ReadDocumentCollectionAsync("/dbs/" + cosmosDatabase + "/colls/" + cosmosCollection);
+            await client.ReadDatabaseAsync("/dbs/" + cosmosDatabase);
+            await client.ReadDocumentCollectionAsync("/dbs/" + cosmosDatabase + "/colls/" + cosmosCollection);
 
             return client;
         }
@@ -336,7 +318,7 @@ namespace ImdbImport
 
         static void Usage()
         {
-            Console.WriteLine("Usage: imdb-import dataDirectory Name Key Database [SingleCollection][ActorCollection FeaturedCollection GenreCollection MovieCollection]");
+            Console.WriteLine("Usage: imdb-import CosmosServer CosmosKey Database [SingleCollection][ActorCollection FeaturedCollection GenreCollection MovieCollection]");
         }
     }
 }
