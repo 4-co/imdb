@@ -33,9 +33,6 @@ namespace ImdbImport
         // worker tasks
         static readonly List<Task> tasks = new List<Task>();
 
-        // see WaitForLoader() - not used by default
-        static Semaphore sem;
-
         static async Task Main(string[] args)
         {
             // This loader uses the single document upsert API for simplicity
@@ -295,9 +292,6 @@ namespace ImdbImport
                     }
                 }
             }
-
-            // release the semaphore
-            if (sem != null) sem.Release();
         }
 
         static void IncrementCounter()
