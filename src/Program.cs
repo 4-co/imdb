@@ -44,7 +44,7 @@ namespace ImdbImport
             // the bulk load APIs should be used for large loads
 
             // make sure the args were passed in
-            if (args.Length != 5 && args.Length != 8)
+            if (args.Length != 4 && args.Length != 7)
             {
                 Usage();
                 Environment.Exit(-1);
