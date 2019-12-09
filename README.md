@@ -1,6 +1,6 @@
 # Sample IMDb data for use with Cosmos DB
 
-This repository contains an extract of 1300 movies and associated actors, producers, directors and genres from the IMDb public data available [here](https://www.imdb.com/interfaces/)
+This repository contains an extract of 1300 movies and associated actors, producers, directors and genres from the IMDb public data available [here](https://www.imdb.com/interfaces/).
 
 The purpose of this repo is to demonstrate some NoSQL modeling and querying techniques and decisions when using Cosmos DB as a database.
 
