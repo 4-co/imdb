@@ -137,7 +137,7 @@ namespace ImdbImport
         {
             // find the data files (different with dotnet run and running in VS)
 
-            string path = "../data/" ;
+            string path = "../data/";
 
             if (!Directory.Exists(path))
             {
@@ -268,7 +268,7 @@ namespace ImdbImport
                     {
                         // catch the CosmosDB RU exceeded exception and retry
                         retryCount++;
-                        
+
                         // reduce the number of concurrent loaders
                         if (maxLoaders > minLoaders)
                         {
