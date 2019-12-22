@@ -208,46 +208,44 @@ namespace ImdbImport
         static void LoadFile(string path, Uri collectionUri)
         {
             // Read the file and load in batches
-            using (System.IO.StreamReader file = new System.IO.StreamReader(path))
+            using System.IO.StreamReader file = new System.IO.StreamReader(path);
+            int count = 0;
+
+            string line;
+            List<dynamic> list = new List<dynamic>();
+
+            while ((line = file.ReadLine()) != null)
             {
-                int count = 0;
+                line = line.Trim();
 
-                string line;
-                List<dynamic> list = new List<dynamic>();
-
-                while ((line = file.ReadLine()) != null)
+                if (line.StartsWith("{", StringComparison.OrdinalIgnoreCase))
                 {
-                    line = line.Trim();
-
-                    if (line.StartsWith("{", StringComparison.OrdinalIgnoreCase))
+                    if (line.EndsWith(",", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (line.EndsWith(",", StringComparison.OrdinalIgnoreCase))
-                        {
-                            line = line.Substring(0, line.Length - 1);
-                        }
-
-                        if (line.EndsWith("}", StringComparison.OrdinalIgnoreCase))
-                        {
-                            count++;
-                            list.Add(JsonConvert.DeserializeObject<dynamic>(line));
-                        }
+                        line = line[0..^1];
                     }
 
-                    // load the batch
-                    if (list.Count >= batchSize)
+                    if (line.EndsWith("}", StringComparison.OrdinalIgnoreCase))
                     {
-                        WaitForLoader();
-                        tasks.Add(LoadData(collectionUri, list));
-                        list = new List<dynamic>();
+                        count++;
+                        list.Add(JsonConvert.DeserializeObject<dynamic>(line));
                     }
                 }
 
-                // load any remaining docs
-                if (list.Count > 0)
+                // load the batch
+                if (list.Count >= batchSize)
                 {
                     WaitForLoader();
                     tasks.Add(LoadData(collectionUri, list));
+                    list = new List<dynamic>();
                 }
+            }
+
+            // load any remaining docs
+            if (list.Count > 0)
+            {
+                WaitForLoader();
+                tasks.Add(LoadData(collectionUri, list));
             }
         }
 
