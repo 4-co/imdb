@@ -3,12 +3,15 @@ using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace ImdbImport
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "By design")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1303:Do not pass literals as localized parameters", Justification = "not localized")]
     class Program
     {
         static int count = 0;
@@ -50,7 +53,7 @@ namespace ImdbImport
             Console.WriteLine("Loading Data ...\n");
 
             // get the Cosmos values from args[]
-            string cosmosUrl = string.Format("https://{0}.documents.azure.com:443/", args[0].Trim().ToLower());
+            string cosmosUrl = string.Format(CultureInfo.InvariantCulture, "https://{0}.documents.azure.com:443/", args[0].Trim());
             string cosmosKey = args[1].Trim();
             string cosmosDatabase = args[2].Trim();
             string actorsCollection = args[3].Trim();
@@ -69,7 +72,7 @@ namespace ImdbImport
             {
                 string path = GetDataFilesPath();
 
-                client = await OpenCosmosClient(cosmosUrl, cosmosKey, cosmosDatabase, moviesCollection);
+                client = await OpenCosmosClient(cosmosUrl, cosmosKey, cosmosDatabase, moviesCollection).ConfigureAwait(false);
 
                 // load featured
                 LoadFile(path + "featured.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, featuredCollection));
@@ -94,7 +97,7 @@ namespace ImdbImport
                 {
                     Console.Write("{0:00':'}", elapsed.TotalHours);
                 }
-                Console.WriteLine(elapsed.ToString("mm':'ss"));
+                Console.WriteLine(elapsed.ToString("mm':'ss", CultureInfo.InvariantCulture));
                 Console.WriteLine("     rows/second: {0:0.00}", count / DateTime.Now.Subtract(startTime).TotalSeconds);
                 Console.WriteLine("         Retries: {0}", retryCount);
             }
@@ -174,11 +177,11 @@ namespace ImdbImport
 
             // open the Cosmos client
             client = new DocumentClient(new Uri(cosmosUrl), cosmosKey, cp);
-            await client.OpenAsync();
+            await client.OpenAsync().ConfigureAwait(false);
 
             // validate database and collection exist
-            await client.ReadDatabaseAsync("/dbs/" + cosmosDatabase);
-            await client.ReadDocumentCollectionAsync("/dbs/" + cosmosDatabase + "/colls/" + cosmosCollection);
+            await client.ReadDatabaseAsync("/dbs/" + cosmosDatabase).ConfigureAwait(false);
+            await client.ReadDocumentCollectionAsync("/dbs/" + cosmosDatabase + "/colls/" + cosmosCollection).ConfigureAwait(false);
 
             return client;
         }
@@ -205,46 +208,44 @@ namespace ImdbImport
         static void LoadFile(string path, Uri collectionUri)
         {
             // Read the file and load in batches
-            using (System.IO.StreamReader file = new System.IO.StreamReader(path))
+            using System.IO.StreamReader file = new System.IO.StreamReader(path);
+            int count = 0;
+
+            string line;
+            List<dynamic> list = new List<dynamic>();
+
+            while ((line = file.ReadLine()) != null)
             {
-                int count = 0;
+                line = line.Trim();
 
-                string line;
-                List<dynamic> list = new List<dynamic>();
-
-                while ((line = file.ReadLine()) != null)
+                if (line.StartsWith("{", StringComparison.OrdinalIgnoreCase))
                 {
-                    line = line.Trim();
-
-                    if (line.StartsWith("{"))
+                    if (line.EndsWith(",", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (line.EndsWith(","))
-                        {
-                            line = line.Substring(0, line.Length - 1);
-                        }
-
-                        if (line.EndsWith("}"))
-                        {
-                            count++;
-                            list.Add(JsonConvert.DeserializeObject<dynamic>(line));
-                        }
+                        line = line[0..^1];
                     }
 
-                    // load the batch
-                    if (list.Count >= batchSize)
+                    if (line.EndsWith("}", StringComparison.OrdinalIgnoreCase))
                     {
-                        WaitForLoader();
-                        tasks.Add(LoadData(collectionUri, list));
-                        list = new List<dynamic>();
+                        count++;
+                        list.Add(JsonConvert.DeserializeObject<dynamic>(line));
                     }
                 }
 
-                // load any remaining docs
-                if (list.Count > 0)
+                // load the batch
+                if (list.Count >= batchSize)
                 {
                     WaitForLoader();
                     tasks.Add(LoadData(collectionUri, list));
+                    list = new List<dynamic>();
                 }
+            }
+
+            // load any remaining docs
+            if (list.Count > 0)
+            {
+                WaitForLoader();
+                tasks.Add(LoadData(collectionUri, list));
             }
         }
 
@@ -304,7 +305,7 @@ namespace ImdbImport
                 // update progress
                 if (count % 100 == 0)
                 {
-                    Console.WriteLine("{0}\t{1}\t{2}\t{3}", count, maxLoaders, string.Format("{0:0.00}", DateTime.Now.Subtract(batchTime).TotalSeconds), DateTime.Now.Subtract(startTime).ToString("mm':'ss"));
+                    Console.WriteLine("{0}\t{1}\t{2}\t{3}", count, maxLoaders, string.Format(CultureInfo.InvariantCulture, "{0:0.00}", DateTime.Now.Subtract(batchTime).TotalSeconds), DateTime.Now.Subtract(startTime).ToString("mm':'ss", CultureInfo.InvariantCulture));
                     batchTime = DateTime.Now;
                 }
             }
