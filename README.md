@@ -52,7 +52,6 @@ az cosmosdb sql database create -a $Imdb_Name -n imdb -g $Imdb_RG
 # 400 is the minimum RUs
 # /partitionKey is the partition key
 # partiton key is the id mod 10
-
 az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n movies
 
 # run the docker IMDb Import app
