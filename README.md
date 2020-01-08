@@ -15,7 +15,7 @@ Used with permission.
 
 ```
 
-## Create Cosmos DB Server, Database and Collection and load the IMDb sample data
+## Create Cosmos DB Server, Database and Container and load the IMDb sample data
 
 This takes several minutes to run
 
@@ -46,27 +46,27 @@ az cosmosdb create  -g $Imdb_RG -n $Imdb_Name > ~/cosmos.log
 export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
 
 # create the database
-az cosmosdb database create -d imdb -g $Imdb_RG -n $Imdb_Name
+az cosmosdb sql database create -a $Imdb_Name -n imdb -g $Imdb_RG 
 
-# create the collection
+# create the container
 # 400 is the minimum RUs
 # /partitionKey is the partition key
 # partiton key is the id mod 10
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n movies
 
 # run the docker IMDb Import app
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key imdb movies
 
 ### Spring Boot Instructions
-# Spring Boot only supports one document type per collection so you have to create and load in separate collections
+# Spring Boot only supports one document type per container so you have to create and load in separate containers
 
-# create 4 collections
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c actors
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c featured
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c genres
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
+# create 4 containers
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n actors
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n featured
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n genres
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n movies
 
-# load the data into 4 collections
+# load the data into 4 containers
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key imdb actors featured genres movies 
 
 ```
@@ -74,15 +74,15 @@ docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key imdb actors f
 ## Exploring the data
 
 * Open Azure Portal and navigate to the Cosmos DB blade created above
-* Select Data Explorer and open the collection to see the data loaded
+* Select Data Explorer and open the container to see the data loaded
 
 ## Design Decisions
 
 In considering the design, we wanted to follow document design best practices as well as optimizing for this specific problem.
 
-## One Collection
+## One container
 
-We chose to include different document types in the same collection for simplicity (and to demonstrate). You can read about some of the tradeoffs [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data) and see some of the side effects in the queries below. Note that some frameworks (like Spring Boot) require a separate collection for each document type.
+We chose to include different document types in the same container for simplicity (and to demonstrate). You can read about some of the tradeoffs [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data) and see some of the side effects in the queries below. Note that some frameworks (like Spring Boot) require a separate container for each document type.
 
 Each document has a type field that is one of: Movie, Actor or Genre
 
@@ -118,7 +118,7 @@ A common usage for this data would be to show the Actor and what movies they wer
 
 Note: When you update a single field in a document, Cosmos DB writes the entire document which can change your IO requirements compared to a relational DBMS.
 
-A good example of what you would not want to embed is the individual ratings. Some movies have over 100K ratings, so you would want to keep the individual ratings in a separate collection and have a process that summarizes and updates the aggregate every n minutes.
+A good example of what you would not want to embed is the individual ratings. Some movies have over 100K ratings, so you would want to keep the individual ratings in a separate container and have a process that summarizes and updates the aggregate every n minutes.
 
 ## Searching
 
@@ -145,7 +145,7 @@ Cosmos DB is an excellent key-value cache with simple geo-distribution and repli
 Some general guidelines:
   
 * Use the native (SQL) API
-* Use a separate collection for your key-value cache than your operational data
+* Use a separate container for your key-value cache than your operational data
 * Use an efficient partition hash that distributes storage and access evenly (int mod x works well for numeric keys)
 * Use indexing [policies](https://docs.microsoft.com/en-us/azure/cosmos-db/index-policy) to turn off indexing for the value in a key-value store
 * Use direct access by ID and partition key for single document reads
@@ -188,7 +188,7 @@ from m
 where m.type = 'Movie'
 
 # Unexpected behavior
-# This is a side effect of combining the document types in one collection
+# This is a side effect of combining the document types in one container
 select m.title
 from m
 
