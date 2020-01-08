@@ -46,13 +46,14 @@ az cosmosdb create  -g $Imdb_RG -n $Imdb_Name > ~/cosmos.log
 export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
 
 # create the database
-az cosmosdb database create -d imdb -g $Imdb_RG -n $Imdb_Name
+az cosmosdb sql database create -a $Imdb_Name -n imdb -g $Imdb_RG 
 
 # create the collection
 # 400 is the minimum RUs
 # /partitionKey is the partition key
 # partiton key is the id mod 10
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
+
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n movies
 
 # run the docker IMDb Import app
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key imdb movies
@@ -61,10 +62,10 @@ docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key imdb movies
 # Spring Boot only supports one document type per collection so you have to create and load in separate collections
 
 # create 4 collections
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c actors
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c featured
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c genres
-az cosmosdb collection create --throughput 400 --partition-key-path /partitionKey -g $Imdb_RG -n $Imdb_Name -d imdb -c movies
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n actors
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n featured
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n genres
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d imdb -n movies
 
 # load the data into 4 collections
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key imdb actors featured genres movies 
