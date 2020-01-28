@@ -40,7 +40,7 @@ export Imdb_RG=${Imdb_Name}-rg
 az group create -n $Imdb_RG -l $Imdb_Location
 
 # create the Cosmos DB server
-az cosmosdb create  -g $Imdb_RG -n $Imdb_Name > ~/cosmos.log
+az cosmosdb create -g $Imdb_RG -n $Imdb_Name > ~/cosmos.log
 
 # export readwrite key
 export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
@@ -106,13 +106,13 @@ Read more about partitioning strategies [here](https://docs.microsoft.com/en-us/
 
 ## Fast Changing Data
 
-Generally, you don't want to combine fast changing data and slow changing data in the same document. In this example, "ratings" is a summary measure that would be periodically updated by a batch process. Because the data updates are known and bounded and the document is small, we chose to combine for ease of use. More information [here](https://docs.microsoft.com/en-us/azure/cosmos-db/partition-data)
+Generally, you don't want to combine fast changing data and slow changing data in the same document. In this example, "ratings" is a summary measure that would be periodically updated by a batch process. Because the data updates are known and bounded and the document is small, we chose to combine for ease of use. More information [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data)
 
 ## Embedded Links
 
 Movies have actors (and producers and directors and crew ...) and Actors star in Movies.
 
-In a relational model, you would normally have a "MoviesActors" table and join. In a document model, you normally embed unless the embedded data is fast changing or potentially grows to be very large. More information [here](https://docs.microsoft.com/en-us/azure/cosmos-db/partition-data)
+In a relational model, you would normally have a "MoviesActors" table and join. In a document model, you normally embed unless the embedded data is fast changing or potentially grows to be very large. More information [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data)
 
 A common usage for this data would be to show the Actor and what movies they were in (or a Movie and the Actors in it). If you embed just the ID, this would be two serial queries. One to get the Actor and the Movie IDs and a second one to pull back the movie information. Given the size of the documents, we chose to optimize this by embedded the entire Movie into the Actor document (and Actors into the Movie document). This simplifies reads but complicate writes. In a high read situation (like showing movies on a web site), this is a good optimization. Just keep an eye on document size and update frequency / complexity.
 
