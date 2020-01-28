@@ -40,7 +40,7 @@ export Imdb_RG=${Imdb_Name}-rg
 az group create -n $Imdb_RG -l $Imdb_Location
 
 # create the Cosmos DB server
-az cosmosdb create -g $Imdb_RG -n $Imdb_Name > ~/cosmos.log
+az cosmosdb create -g $Imdb_RG -n $Imdb_Name
 
 # export readwrite key
 export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
