@@ -50,7 +50,7 @@ az cosmosdb create -g $Imdb_RG -n $Imdb_Name
 export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
 
 # create the database
-az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG 
+az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG
 
 # create the container
 # 400 is the minimum RUs
