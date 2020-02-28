@@ -6,9 +6,9 @@ on:
       - master
 
     paths-ignore:
-      - 'docs/**'
+      - 'slides/**'
       - '.github/**'
-      - 'README.md'
+      - '**.md'
       - 'savenv.sh'
 
     tags:
