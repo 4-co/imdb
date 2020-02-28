@@ -1,22 +1,28 @@
-name: Docker CI
+name: Docker Image Build
 
 on:
   push:
     branches:
       - master
 
-    paths:
-      - 'src/**'
-      - 'Dockerfile*'
+    paths-ignore:
+      - 'slides/**'
+      - '.github/**'
+      - '**.md'
+      - 'saveenv.sh'
 
     tags:
       - v*
 
+
 jobs:
 
-  build:
+  docker-build-push:
 
     runs-on: ubuntu-latest
+    env:
+      #  DOCKER_REPO  - the docker repository name in the form: organization/repository
+      DOCKER_REPO: 'retaildevcrew/imdb'
 
     steps:
     - uses: actions/checkout@v1
@@ -25,10 +31,10 @@ jobs:
       run: |
         # Login to registry
 
-        # You must add the following secrets to github
+        #    You must add the following secrets to github
         #    DOCKER_USER  - your dockerhub user name
         #    DOCKER_PAT   - the personal access token for dockerhub
-        #    DOCKER_REPO  - the docker repository name in the form: organization/repository
+       
 
         ## login to dockerhub
         echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
@@ -40,23 +46,63 @@ jobs:
       run: |
         # Tag and push the docker image
 
-        IMAGE_ID=${{ secrets.DOCKER_REPO }}
+        IMAGE_ID=$DOCKER_REPO
 
-        # Strip git ref prefix from version
-        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-
-        # Only tag and push when a new tag is created
+        # Tag image based on repo tag if a github label
         if [[ "${{ github.ref }}" == "refs/tags/"* ]]
         then
+
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+        
           # Strip "v" prefix from tag name
           VERSION=$(echo $VERSION | sed -e 's/^v//')
-  
+
+          # tag the image with :beta, :Version and :stable
+          docker tag image $IMAGE_ID:beta 
           docker tag image $IMAGE_ID:$VERSION
           docker tag image $IMAGE_ID:stable
-  
-          docker push $IMAGE_ID
 
-          echo "Image pushed"
         else
-          echo "Image only pushed on tags"
+          # tag the image with :beta only if no tag
+          docker tag image $IMAGE_ID:beta
         fi
+
+        # Push to the repo
+        docker push $IMAGE_ID
+
+  acr-build-push-version:
+    runs-on: ubuntu-latest
+    env:
+      ACR_REG: 'heliume2e'
+      ACR_REPO: 'heliume2e.azurecr.io'
+      ACR_IMAGE: 'imdb'
+      ACR_TAG: 'stable'
+    steps:
+      - uses: actions/checkout@v1
+      - name: acr-push-build
+        run: |
+          #    You must add the following secrets to github
+          #    SERVICE_PRINCIPAL  - your SP Client ID that has ACR Push IAM role
+          #    SERVICE_PRINCIPAL_PASSWORD   - the personal access token for the SP Client id
+          #    TENANT  - The tenant ID of the subscription of the ACR
+
+
+          echo "Building Docker image ${ACR_REPO}/${ACR_IMAGE} from ${GITHUB_REPOSITORY} on ${{ github.ref }}; and pushing it to ${ACR_REG} Azure Container Registry"
+          az login --service-principal -u ${{ secrets.SERVICE_PRINCIPAL }} -p ${{ secrets.SERVICE_PRINCIPAL_SECRET }} --tenant ${{ secrets.TENANT }}
+          
+          if [[ "${{ github.ref }}" == "refs/tags/"* ]]
+          then
+
+          # Strip git ref prefix from version
+            VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+        
+          # Strip "v" prefix from tag name
+            VERSION=$(echo $VERSION | sed -e 's/^v//')
+
+            az acr build -r ${ACR_REG} -f Dockerfile -t ${ACR_REPO}/${ACR_IMAGE}:${VERSION} -t ${ACR_REPO}/${ACR_IMAGE}:${ACR_TAG} -t ${ACR_REPO}/${ACR_IMAGE}:beta https://github.com/${GITHUB_REPOSITORY}.git#${{ github.ref }}
+          else
+            az acr build -r ${ACR_REG} -f Dockerfile -t ${ACR_REPO}/${ACR_IMAGE}:beta https://github.com/${GITHUB_REPOSITORY}.git#${{ github.ref }}
+          fi
+
+  

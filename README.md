@@ -1,5 +1,8 @@
 # Sample IMDb data for use with Cosmos DB
 
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Docker Image Build](https://github.com/retaildevcrews/imdb/workflows/Docker%20Image%20Build/badge.svg)
+
 This repository contains an extract of 1300 movies and associated actors, producers, directors and genres from the IMDb public data available [here](https://www.imdb.com/interfaces/).
 
 The purpose of this repo is to demonstrate some NoSQL modeling and querying techniques and decisions when using Cosmos DB as a database.
