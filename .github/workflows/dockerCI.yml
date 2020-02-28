@@ -9,7 +9,7 @@ on:
       - 'slides/**'
       - '.github/**'
       - '**.md'
-      - 'savenv.sh'
+      - 'saveenv.sh'
 
     tags:
       - v*
