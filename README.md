@@ -174,16 +174,19 @@ select * from m
 select m.movieId, m.type, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.type = 'Movie'
+order by m.textSearch, m.movieId
 
 # List of Genres
 select m.genre
 from m
 where m.type = 'Genre'
+order by m.genre
 
 # List of Actors
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
 where m.type = 'Actor'
+order by m.textSearch, m.actorId
 
 # Simple transform
 select value m.title
@@ -204,6 +207,7 @@ where m.id = 'tt0133093'
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.movieId in ('tt0167260', 'tt0419781', 'tt0367495', 'tt0120737', 'tt0358456')
+order by m.textSearch, m.movieId
 
 # The API has a more efficient way to retrieve exactly one document by ID
 #   It is faster and consumes less RUs and should be used in most scenarios
@@ -219,7 +223,8 @@ where m.id = 'nm0000206'
 # Movies Jennifer Connelly is in
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
-where array_contains(m.roles, { actorId: 'nm0000124' }, true) order by m.movieId
+where array_contains(m.roles, { actorId: 'nm0000124' }, true)
+order by m.textSearch, m.movieId
 
 # Another way
 # note you can't use select * or select m.*
@@ -227,23 +232,20 @@ select m.movieId, m.type, m.title, m.year, m.runtime, m.genres, m.roles
 from movies m
 join r in m.roles
 where r.actorId = 'nm0000124'
+order by m.textSearch, m.movieId
 
 # Action Movies
 # Note this is case sensitive, so 'action' won't work
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where array_contains(m.genres, 'Action')
-order by m.movieId
+order by m.textSearch, m.movieId
 
 # Search movie title for 'rings'
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where contains(m.textSearch, 'rings')
-
-# Search actor names for 'tom'
-select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
-from m
-where contains(m.textSearch, 'tom')
+order by m.textSearch, m.movieId
 
 # Long movies
 select top 5 m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
@@ -259,11 +261,18 @@ order by m.rating desc
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.year = 2006
+order by m.textSearch, m.movieId
+
+# Search actor names for 'tom'
+select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
+from m
+where contains(m.textSearch, 'tom')
+order by m.textSearch, m.actorId
 
 # Actors in more than one movie
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
 where array_length(m.movies) > 1
-order by m.name
+order by m.textSearch, m.actorId
 
 ```
