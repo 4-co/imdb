@@ -59,7 +59,13 @@ az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG
 # 400 is the minimum RUs
 # /partitionKey is the partition key
 # partiton key is the id mod 10
-az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
+az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col --idx @index.json
+
+### Note: the az cosmosdb sql command set is still in preview
+###       verify that the results of the above command show two composite indices created
+###       If not, run the command below (you can ignore the deprecated warning)
+az cosmosdb collection update -g $Imdb_RG -n $Imdb_Name -d $Imdb_DB -c $Imdb_Col --indexing-policy @index.json
+
 
 # run the docker IMDb Import app
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key $Imdb_DB $Imdb_Col
@@ -123,6 +129,8 @@ The Genre search uses an "array_contains" search. In a relational model, you wou
 
 Note that in Cosmos DB, search is case sensitive, so searching Movies for "matrix" will return zero documents but searching for "Matrix" will return the correct number of documents. We chose to address this by adding a "textSearch" field that is a lowercase version of the title or actor name (it could contain other keywords as well). This adds size to the document, but prevents having to use contains(lower(m.title), 'matrix'). By using lower(), you are doing a full table scan and not using the index. For 1300 movies, this is minimal work, but at scale, it will be slow and expensive.
 
+We also create composite indices on textSearch, movieId for Movies and textSearch, actorId for Actors. Since Movies and Actors may have the same name, this allows us to ensure deterministic ordering. To order by a composite key in Cosmos DB, you must first create the composite index. See [index.json](./index.json) for the index definitions.
+
 Again, for large or advanced search workloads, you should integrate Azure Search (or SOLR) as part of the solution, using the Cosmos DB [change feed](https://docs.microsoft.com/en-us/azure/cosmos-db/change-feed) to keep the index fresh is a proven model.
 
 ## Understanding RUs
@@ -138,7 +146,7 @@ Avoid cross partition queries when possible. Cosmos DB will run the query in par
 Cosmos DB is an excellent key-value cache with simple geo-distribution and replication. Performance is often better than other caching solutions and Cosmos DB is cost competitive. The added simplicity of having one data access API and one data platform to manage makes development and operations more efficient.
 
 Some general guidelines:
-  
+
 * Use the native (SQL) API
 * Use a separate container for your key-value cache than your operational data
 * Use an efficient partition hash that distributes storage and access evenly (int mod x works well for numeric keys)
