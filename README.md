@@ -20,22 +20,20 @@ Used with permission.
 
 ## Create Cosmos DB Server, Database and Container and load the IMDb sample data
 
+> The `az cosmosdb sql` extension is currently in preview and is subject to change
+
 This takes several minutes to run
 
 ```bash
 
 # set environment variables
-
-# location
 export Imdb_Location="centralus"
+export Imdb_DB="imdb"
+export Imdb_Col="movies"
 
 # replace xxxx with a unique identifier (or replace the entire name)
 # do not use punctuation or uppercase (a-z, 0-9)
 export Imdb_Name="imdbcosmosxxxx"
-
-export Imdb_DB="imdb"
-
-export Imdb_Col="movies"
 
 ## if true, change name to avoid DNS failure on create
 az cosmosdb check-name-exists -n ${Imdb_Name}
