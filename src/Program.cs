@@ -142,9 +142,10 @@ namespace ImdbImport
                 // update the container
                 col.Resource.IndexingPolicy.CompositeIndexes = idx;
                 var repl = await client.ReplaceDocumentCollectionAsync(col).ConfigureAwait(false);
-                idx = repl.Resource.IndexingPolicy.CompositeIndexes;
 
                 // verify index
+                idx = repl.Resource.IndexingPolicy.CompositeIndexes;
+
                 if (idx == null || idx.Count != 2)
                 {
                     throw new Exception("Index create failed");
