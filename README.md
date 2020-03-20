@@ -51,19 +51,12 @@ az cosmosdb create -g $Imdb_RG -n $Imdb_Name
 export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
 
 # create the database
-az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG
+# 400 is the minimum --throughput (RUs)
+az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG --throughput 1000
 
 # create the container
-# 400 is the minimum RUs
 # /partitionKey is the partition key
-# partiton key is the id mod 10
-az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col --idx @index.json
-
-### Note: the az cosmosdb sql command set is still in preview
-###       verify that the results of the above command show two composite indices created
-###       If not, run the command below (you can ignore the deprecated warning)
-az cosmosdb collection update -g $Imdb_RG -n $Imdb_Name -d $Imdb_DB -c $Imdb_Col --indexing-policy @index.json
-
+az cosmosdb sql container create -p /partitionKey --idx @index.json -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
 
 # run the docker IMDb Import app
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key $Imdb_DB $Imdb_Col
