@@ -3,6 +3,7 @@ using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -50,7 +51,7 @@ namespace ImdbImport
                 Environment.Exit(-1);
             }
 
-            Console.WriteLine("Loading Data ...\n");
+            Console.WriteLine("Creating Composite Indices");
 
             // get the Cosmos values from args[]
             string cosmosUrl = string.Format(CultureInfo.InvariantCulture, "https://{0}.documents.azure.com:443/", args[0].Trim());
@@ -73,6 +74,11 @@ namespace ImdbImport
                 string path = GetDataFilesPath();
 
                 client = await OpenCosmosClient(cosmosUrl, cosmosKey, cosmosDatabase, moviesCollection).ConfigureAwait(false);
+
+                // create composite indices if necessary
+                await CreateCompositeIndicesAsync(client).ConfigureAwait(false);
+
+                Console.WriteLine("Loading Data ...");
 
                 // load featured
                 LoadFile(path + "featured.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, featuredCollection));
@@ -104,6 +110,46 @@ namespace ImdbImport
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+            }
+        }
+
+        static async Task CreateCompositeIndicesAsync(DocumentClient client)
+        {
+            // create composite indices if necessary
+            var col = await client.ReadDocumentCollectionAsync("/dbs/imdb/colls/movies").ConfigureAwait(false);
+            var cur = col.Resource.IndexingPolicy.CompositeIndexes;
+
+            if (cur == null || cur.Count != 2)
+            {
+                // create the composite indices
+                var idx = new System.Collections.ObjectModel.Collection<System.Collections.ObjectModel.Collection<CompositePath>>
+                    {
+                        new Collection<CompositePath>
+                        {
+                            // actors - order by textSearch ASC, actorId ASC
+                            new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/textSearch" },
+                            new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/actorId" }
+                        },
+
+                        new Collection<CompositePath>
+                        {
+                            // movies - order by textSearch ASC, movieId ASC
+                            new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/textSearch" },
+                            new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/movieId" }
+                        }
+                    };
+
+                // update the container
+                col.Resource.IndexingPolicy.CompositeIndexes = idx;
+                var repl = await client.ReplaceDocumentCollectionAsync(col).ConfigureAwait(false);
+
+                // verify index
+                idx = repl.Resource.IndexingPolicy.CompositeIndexes;
+
+                if (idx == null || idx.Count != 2)
+                {
+                    throw new Exception("Index create failed");
+                }
             }
         }
 

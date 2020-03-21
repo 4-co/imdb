@@ -20,22 +20,20 @@ Used with permission.
 
 ## Create Cosmos DB Server, Database and Container and load the IMDb sample data
 
+> The `az cosmosdb sql` extension is currently in preview and is subject to change
+
 This takes several minutes to run
 
 ```bash
 
 # set environment variables
-
-# location
 export Imdb_Location="centralus"
+export Imdb_DB="imdb"
+export Imdb_Col="movies"
 
 # replace xxxx with a unique identifier (or replace the entire name)
 # do not use punctuation or uppercase (a-z, 0-9)
 export Imdb_Name="imdbcosmosxxxx"
-
-export Imdb_DB="imdb"
-
-export Imdb_Col="movies"
 
 ## if true, change name to avoid DNS failure on create
 az cosmosdb check-name-exists -n ${Imdb_Name}
@@ -53,13 +51,12 @@ az cosmosdb create -g $Imdb_RG -n $Imdb_Name
 export Imdb_Key=$(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv)
 
 # create the database
-az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG
+# 400 is the minimum --throughput (RUs)
+az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG --throughput 1000
 
 # create the container
-# 400 is the minimum RUs
 # /partitionKey is the partition key
-# partiton key is the id mod 10
-az cosmosdb sql container create --throughput "400" -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
+az cosmosdb sql container create -p /partitionKey --idx @index.json -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
 
 # run the docker IMDb Import app
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key $Imdb_DB $Imdb_Col
@@ -123,6 +120,8 @@ The Genre search uses an "array_contains" search. In a relational model, you wou
 
 Note that in Cosmos DB, search is case sensitive, so searching Movies for "matrix" will return zero documents but searching for "Matrix" will return the correct number of documents. We chose to address this by adding a "textSearch" field that is a lowercase version of the title or actor name (it could contain other keywords as well). This adds size to the document, but prevents having to use contains(lower(m.title), 'matrix'). By using lower(), you are doing a full table scan and not using the index. For 1300 movies, this is minimal work, but at scale, it will be slow and expensive.
 
+Order by is also case sensitive in Cosmos DB, so Alice Through the Looking Glass sorts before Alice in Wonderland. We use the textSearch field to avoid this behavior. We also create composite indices on textSearch, movieId for Movies and textSearch, actorId for Actors. Since Movies and Actors may have the same name, this allows us to ensure deterministic ordering. To order by a composite key in Cosmos DB, you must first create the composite index. See [index.json](./index.json) for the index definitions.
+
 Again, for large or advanced search workloads, you should integrate Azure Search (or SOLR) as part of the solution, using the Cosmos DB [change feed](https://docs.microsoft.com/en-us/azure/cosmos-db/change-feed) to keep the index fresh is a proven model.
 
 ## Understanding RUs
@@ -138,7 +137,7 @@ Avoid cross partition queries when possible. Cosmos DB will run the query in par
 Cosmos DB is an excellent key-value cache with simple geo-distribution and replication. Performance is often better than other caching solutions and Cosmos DB is cost competitive. The added simplicity of having one data access API and one data platform to manage makes development and operations more efficient.
 
 Some general guidelines:
-  
+
 * Use the native (SQL) API
 * Use a separate container for your key-value cache than your operational data
 * Use an efficient partition hash that distributes storage and access evenly (int mod x works well for numeric keys)
@@ -166,16 +165,19 @@ select * from m
 select m.movieId, m.type, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.type = 'Movie'
+order by m.textSearch, m.movieId
 
 # List of Genres
 select m.genre
 from m
 where m.type = 'Genre'
+order by m.genre
 
 # List of Actors
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
 where m.type = 'Actor'
+order by m.textSearch, m.actorId
 
 # Simple transform
 select value m.title
@@ -196,6 +198,7 @@ where m.id = 'tt0133093'
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.movieId in ('tt0167260', 'tt0419781', 'tt0367495', 'tt0120737', 'tt0358456')
+order by m.textSearch, m.movieId
 
 # The API has a more efficient way to retrieve exactly one document by ID
 #   It is faster and consumes less RUs and should be used in most scenarios
@@ -211,7 +214,8 @@ where m.id = 'nm0000206'
 # Movies Jennifer Connelly is in
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
-where array_contains(m.roles, { actorId: 'nm0000124' }, true) order by m.movieId
+where array_contains(m.roles, { actorId: 'nm0000124' }, true)
+order by m.textSearch, m.movieId
 
 # Another way
 # note you can't use select * or select m.*
@@ -219,23 +223,20 @@ select m.movieId, m.type, m.title, m.year, m.runtime, m.genres, m.roles
 from movies m
 join r in m.roles
 where r.actorId = 'nm0000124'
+order by m.textSearch, m.movieId
 
 # Action Movies
 # Note this is case sensitive, so 'action' won't work
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where array_contains(m.genres, 'Action')
-order by m.movieId
+order by m.textSearch, m.movieId
 
 # Search movie title for 'rings'
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where contains(m.textSearch, 'rings')
-
-# Search actor names for 'tom'
-select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
-from m
-where contains(m.textSearch, 'tom')
+order by m.textSearch, m.movieId
 
 # Long movies
 select top 5 m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
@@ -251,11 +252,18 @@ order by m.rating desc
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.year = 2006
+order by m.textSearch, m.movieId
+
+# Search actor names for 'tom'
+select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
+from m
+where contains(m.textSearch, 'tom')
+order by m.textSearch, m.actorId
 
 # Actors in more than one movie
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
 where array_length(m.movies) > 1
-order by m.name
+order by m.textSearch, m.actorId
 
 ```

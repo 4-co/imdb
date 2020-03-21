@@ -1,0 +1,36 @@
+{
+  "indexingMode": "consistent",
+  "automatic": true,
+  "includedPaths": [
+      {
+          "path": "/*"
+      }
+  ],
+  "excludedPaths": [
+      {
+          "path": "/_etag/?"
+      }
+  ],
+  "compositeIndexes":[  
+      [  
+          {  
+              "path":"/textSearch",
+              "order":"ascending"
+          },
+          {  
+              "path":"/actorId",
+              "order":"ascending"
+          }
+      ],
+      [  
+          {  
+              "path":"/textSearch",
+              "order":"ascending"
+          },
+          {  
+              "path":"/movieId",
+              "order":"ascending"
+          }
+      ]
+  ]
+}
