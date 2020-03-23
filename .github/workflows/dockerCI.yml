@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       #  DOCKER_REPO  - the docker repository name in the form: organization/repository
-      DOCKER_REPO: 'retaildevcrew/imdb'
+      DOCKER_REPO: 'retaildevcrew/imdb-import'
 
     steps:
     - uses: actions/checkout@v1
