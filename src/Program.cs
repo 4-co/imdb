@@ -76,7 +76,7 @@ namespace ImdbImport
                 client = await OpenCosmosClient(cosmosUrl, cosmosKey, cosmosDatabase, moviesCollection).ConfigureAwait(false);
 
                 // create composite indices if necessary
-                await CreateCompositeIndicesAsync(client).ConfigureAwait(false);
+                await CreateCompositeIndicesAsync(client, cosmosDatabase, moviesCollection).ConfigureAwait(false);
 
                 Console.WriteLine("Loading Data ...");
 
@@ -113,10 +113,10 @@ namespace ImdbImport
             }
         }
 
-        static async Task CreateCompositeIndicesAsync(DocumentClient client)
+        static async Task CreateCompositeIndicesAsync(DocumentClient client, string cosmosDatabase, string cosmosCollection)
         {
             // create composite indices if necessary
-            var col = await client.ReadDocumentCollectionAsync("/dbs/imdb/colls/movies").ConfigureAwait(false);
+            var col = await client.ReadDocumentCollectionAsync(string.Format(CultureInfo.InvariantCulture, $"/dbs/{cosmosDatabase}/colls/{cosmosCollection}")).ConfigureAwait(false);
             var cur = col.Resource.IndexingPolicy.CompositeIndexes;
 
             if (cur == null || cur.Count != 2)
