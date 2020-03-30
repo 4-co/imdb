@@ -37,7 +37,7 @@ namespace ImdbImport
         // worker tasks
         static readonly List<Task> tasks = new List<Task>();
 
-        static async Task Main(string[] args)
+        static async Task<int> Main(string[] args)
         {
             // This loader uses the single document upsert API for simplicity
             // Peak throughput is about 400 documents / sec
@@ -45,10 +45,10 @@ namespace ImdbImport
             // the bulk load APIs should be used for large loads
 
             // make sure the args were passed in
-            if (args.Length != 4 && args.Length != 7)
+            if (args.Length != 4)
             {
                 Usage();
-                Environment.Exit(-1);
+                return -1;
             }
 
             Console.WriteLine("Creating Composite Indices");
@@ -57,40 +57,30 @@ namespace ImdbImport
             string cosmosUrl = string.Format(CultureInfo.InvariantCulture, "https://{0}.documents.azure.com:443/", args[0].Trim());
             string cosmosKey = args[1].Trim();
             string cosmosDatabase = args[2].Trim();
-            string actorsCollection = args[3].Trim();
-            string genresCollection = args[3].Trim();
-            string moviesCollection = args[3].Trim();
-            string featuredCollection = args[3].Trim();
-
-            if (args.Length == 7)
-            {
-                featuredCollection = args[4].Trim();
-                genresCollection = args[5].Trim();
-                moviesCollection = args[6].Trim();
-            }
+            string cosmosCollection = args[3].Trim();
 
             try
             {
                 string path = GetDataFilesPath();
 
-                client = await OpenCosmosClient(cosmosUrl, cosmosKey, cosmosDatabase, moviesCollection).ConfigureAwait(false);
+                client = await OpenCosmosClient(cosmosUrl, cosmosKey, cosmosDatabase, cosmosCollection).ConfigureAwait(false);
 
                 // create composite indices if necessary
-                await CreateCompositeIndicesAsync(client).ConfigureAwait(false);
+                await CreateCompositeIndicesAsync(client, cosmosDatabase, cosmosCollection).ConfigureAwait(false);
 
                 Console.WriteLine("Loading Data ...");
 
                 // load featured
-                LoadFile(path + "featured.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, featuredCollection));
+                LoadFile(path + "featured.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, cosmosCollection));
 
                 // load genres
-                LoadFile(path + "genres.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, genresCollection));
+                LoadFile(path + "genres.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, cosmosCollection));
 
                 // load movies
-                LoadFile(path + "movies.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, moviesCollection));
+                LoadFile(path + "movies.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, cosmosCollection));
 
                 // load actors
-                LoadFile(path + "actors.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, actorsCollection));
+                LoadFile(path + "actors.json", UriFactory.CreateDocumentCollectionUri(cosmosDatabase, cosmosCollection));
 
                 // wait for tasks to finish
                 Task.WaitAll(tasks.ToArray());
@@ -110,13 +100,16 @@ namespace ImdbImport
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+                return -1;
             }
+
+            return 0;
         }
 
-        static async Task CreateCompositeIndicesAsync(DocumentClient client)
+        static async Task CreateCompositeIndicesAsync(DocumentClient client, string cosmosDatabase, string cosmosCollection)
         {
             // create composite indices if necessary
-            var col = await client.ReadDocumentCollectionAsync("/dbs/imdb/colls/movies").ConfigureAwait(false);
+            var col = await client.ReadDocumentCollectionAsync(string.Format(CultureInfo.InvariantCulture, $"/dbs/{cosmosDatabase}/colls/{cosmosCollection}")).ConfigureAwait(false);
             var cur = col.Resource.IndexingPolicy.CompositeIndexes;
 
             if (cur == null || cur.Count != 2)
@@ -359,7 +352,7 @@ namespace ImdbImport
 
         static void Usage()
         {
-            Console.WriteLine("Usage: imdb-import CosmosServer CosmosKey Database [SingleCollection][ActorCollection FeaturedCollection GenreCollection MovieCollection]");
+            Console.WriteLine("Usage: imdb-import CosmosServer CosmosKey Database Collection");
         }
     }
 }
