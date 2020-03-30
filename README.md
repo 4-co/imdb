@@ -56,7 +56,7 @@ az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG --throughp
 
 # create the container
 # /partitionKey is the partition key
-az cosmosdb sql container create -p /partitionKey --idx @index.json -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
+az cosmosdb sql container create -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
 
 # run the docker IMDb Import app
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key $Imdb_DB $Imdb_Col
