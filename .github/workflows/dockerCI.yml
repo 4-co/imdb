@@ -65,7 +65,7 @@ jobs:
 
         else
           # tag the image with :latest only if no tag
-          docker tag image $IMAGE_ID:latest
+          docker tag image $IMAGE_ID:beta
         fi
 
         # Push to the repo
