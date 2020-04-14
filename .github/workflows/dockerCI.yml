@@ -64,7 +64,7 @@ jobs:
           docker tag image $IMAGE_ID:latest
 
         else
-          # tag the image with :latest only if no tag
+          # tag the image with :beta only if no tag
           docker tag image $IMAGE_ID:beta
         fi
 
