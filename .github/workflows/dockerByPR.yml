@@ -44,12 +44,6 @@ jobs:
 
         IMAGE_ID=$DOCKER_REPO
 
-        # Tag image based on repo tag if a github label
-
-
-        # Strip git ref prefix from version
-        VERSION=$(echo "${{ github.head_ref }}" | sed -e 's,.*/\(.*\),\1,')
-
         docker tag image $IMAGE_ID:beta
 
         docker push $IMAGE_ID:beta
