@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <RootNamespace>ImdbImport</RootNamespace>
+    <RootNamespace>CSE.ImdbImport</RootNamespace>
     <Version>1.0.7+$([System.DateTime]::UtcNow.ToString(`MMdd-HHmm`))</Version>
     <Copyright>Copyright (c) Microsoft Corporation. All rights reserved.</Copyright>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
