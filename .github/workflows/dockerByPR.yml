@@ -33,7 +33,7 @@ jobs:
        
 
         ## login to dockerhub
-        echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
+        echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin 
 
     - name: Build Container
       run: docker build . --file Dockerfile --tag image
