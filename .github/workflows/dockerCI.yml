@@ -1,7 +1,6 @@
 name: Docker Image Build
 
 on:
-on:
   pull_request:
     branches:
       - master
