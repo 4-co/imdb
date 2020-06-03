@@ -1,0 +1,17 @@
+{
+  "name": "imdb-import",
+
+  "settings": { "terminal.integrated.shell.linux": "/bin/bash" },
+
+  // Install extensions
+  "extensions": [
+    "ms-dotnettools.csharp",
+    "eamodio.gitlens",
+    "davidanson.vscode-markdownlint",
+    "gruntfuggly.todo-tree",
+    "ms-azuretools.vscode-docker"
+  ],
+
+  // Run Bash script in .devcontainer directory
+  "postCreateCommand": "/bin/bash ./.devcontainer/post-install.sh"
+}
