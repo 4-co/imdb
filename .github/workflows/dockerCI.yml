@@ -49,7 +49,8 @@ jobs:
       if: ${{ env.DOCKER_PAT != '' && env.DOCKER_REPO != '' && env.DOCKER_USER != '' }}"
       run: |
         # tag the image with :beta
-        docker tag image $DOCKER_REPO:beta
+        echo $DOCKER_REPO
+        docker tag image ${DOCKER_REPO}:beta
 
         # Tag image based on repo tag if a github label
         if [[ "${{ github.ref }}" == "refs/tags/"* ]]
@@ -62,8 +63,8 @@ jobs:
           VERSION=$(echo $VERSION | sed -e 's/^v//')
 
           # tag the image with :Version and :latest
-          docker tag image $DOCKER_REPO:$VERSION
-          docker tag image $DOCKER_REPO:latest
+          docker tag image ${DOCKER_REPO}:$VERSION
+          docker tag image ${DOCKER_REPO}:latest
         fi
 
         # Push to the repo
