@@ -1,5 +1,5 @@
 # set prompt
-PS1='\[\033[01;30m\]\u@helium \[\033[01;34m\]\w/\[\033[00m\] $ '
+PS1='\[\033[01;30m\]\u@imdb \[\033[01;34m\]\w/\[\033[00m\] $ '
 
 # aliases
 alias ls='ls --color=auto'
