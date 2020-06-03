@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
@@ -20,5 +19,4 @@
     </PackageReference>
     <PackageReference Include="newtonsoft.json" Version="12.0.3" />
   </ItemGroup>
-
 </Project>
