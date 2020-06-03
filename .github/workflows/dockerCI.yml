@@ -1,19 +1,21 @@
 name: Docker Image Build
 
 on:
+on:
+  pull_request:
+    branches:
+      - master
   push:
     branches:
       - master
 
     paths-ignore:
-      - 'slides/**'
-      - 'docs/**'
       - '.devcontainer/**'
+      - 'docs/**'
       - '**.md'
 
     tags:
       - v*
-
 
 jobs:
 
@@ -21,35 +23,38 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      #  DOCKER_REPO  - the docker repository name in the form: organization/repository
-      DOCKER_REPO: 'retaildevcrew/imdb-import'
+      DOCKER_REPO: $${ secrets.DOCKER_REPO }
+      DOCKER_USER: $${ secrets.DOCKER_USER }
+      DOCKER_PAT: $${ secrets.DOCKER_PAT }
 
     steps:
     - uses: actions/checkout@v1
 
+    - name: Build Container
+      run: docker build . -t image
+
     - name: Login to registry
+      if: ${{ env.DOCKER_PAT != '' && env.DOCKER_REPO != '' && env.DOCKER_USER != '' }}"
       run: |
         # Login to registry
 
-        #    You must add the following secrets to github
-        #    DOCKER_USER  - your dockerhub user name
-        #    DOCKER_PAT   - the personal access token for dockerhub
-       
+        # You must add the following secrets to github
+        #    DOCKER_REPO - your docker hub repo name
+        #    DOCKER_USER - your docker hub user name
+        #    DOCKER_PAT  - the personal access token for docker hub
 
-        ## login to dockerhub
+        ## login to docker hub
         echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
 
-    - name: Build Container
-      run: docker build . --file Dockerfile --tag image
-
     - name: Docker Push
+      if: ${{ env.DOCKER_PAT != '' && env.DOCKER_REPO != '' && env.DOCKER_USER != '' }}"
       run: |
         # Tag and push the docker image
 
+        IMAGE_ID=$DOCKER_REPO
+
         # tag the image with :beta
         docker tag image $IMAGE_ID:beta
-
-        IMAGE_ID=$DOCKER_REPO
 
         # Tag image based on repo tag if a github label
         if [[ "${{ github.ref }}" == "refs/tags/"* ]]
@@ -57,11 +62,11 @@ jobs:
 
           # Strip git ref prefix from version
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-        
+
           # Strip "v" prefix from tag name
           VERSION=$(echo $VERSION | sed -e 's/^v//')
 
-          # tag the image with :version and :latest
+          # tag the image with :Version and :latest
           docker tag image $IMAGE_ID:$VERSION
           docker tag image $IMAGE_ID:latest
         fi
