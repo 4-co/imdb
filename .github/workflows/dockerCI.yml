@@ -7,9 +7,9 @@ on:
 
     paths-ignore:
       - 'slides/**'
-      - '.github/**'
+      - 'docs/**'
+      - '.devcontainer/**'
       - '**.md'
-      - 'saveenv.sh'
 
     tags:
       - v*
@@ -46,6 +46,9 @@ jobs:
       run: |
         # Tag and push the docker image
 
+        # tag the image with :beta
+        docker tag image $IMAGE_ID:beta
+
         IMAGE_ID=$DOCKER_REPO
 
         # Tag image based on repo tag if a github label
@@ -58,14 +61,9 @@ jobs:
           # Strip "v" prefix from tag name
           VERSION=$(echo $VERSION | sed -e 's/^v//')
 
-          # tag the image with :beta, :Version and :stable
-          docker tag image $IMAGE_ID:beta 
+          # tag the image with :version and :latest
           docker tag image $IMAGE_ID:$VERSION
           docker tag image $IMAGE_ID:latest
-
-        else
-          # tag the image with :beta only if no tag
-          docker tag image $IMAGE_ID:beta
         fi
 
         # Push to the repo

@@ -74,7 +74,7 @@ In considering the design, we wanted to follow document design best practices as
 
 ## One container
 
-We chose to include different document types in the same container for simplicity (and to demonstrate). You can read about some of the tradeoffs [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data) and see some of the side effects in the queries below. Note that some frameworks (like Spring Boot) require a separate container for each document type.
+We chose to include different document types in the same container for simplicity (and to demonstrate). You can read about some of the tradeoffs [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data) and see some of the side effects in the queries below. Note that some frameworks (e.g., Spring Data JPA Repositories) require a separate container for each document type.
 
 Each document has a type field that is one of: Movie, Actor or Genre
 
@@ -88,9 +88,9 @@ Note: the partition key must be a string
 
 Note: Genres use a partitionKey of "0" as there are only 19 Genres
 
-You want your partition key to be well distributed from a storage and usage perspective. For Actors, a good partition key could be birthYear mod x. However, this would likely not be a good partition key for Movies as a high percentage of the requests are likely to be for the current year which would create a hot partition. A hash of the title would likely be a good choice. movieId (and actorId) are integers with a character preface (tt or nm), so a mod x on the integer portion is a good choice as well and the one we chose.
+You want your partition key to be well distributed from a storage and usage perspective. For Actors, a good partition key could be birthYear mod x. However, this would likely not be a good partition key for Movies as a high percentage of the requests are likely to be for the current year which would create a hot partition. A hash of the title would likely be a good choice. The elements movieId (and actorId) are integers with a character preface (tt or nm) which means a mod x on the integer portion is a good choice as well and is the partition key we chose.
 
-In order to use the Cosmos DB API to read a single 1K document using 1 RU, you need to know the partition key, so having a value that you can compute the partition key from is a best practice. Note that some frameworks (like Spring Boot) don't support the single document read API and always use the query API. This can have a significant cost impact depending on the access pattern.
+In order to use the Cosmos DB API to read a single 1K document using 1 RU you need to know the partition key. So, having a value that you can compute the partition key from is a best practice. Note that some frameworks (e.g., Spring Data JPA Repositories) don't support the single document read API and always use the query API. This can impact cost significantly depending on the access pattern.
 
 You want to avoid cross-partition queries when possible as they incur additional work which increases the RUs and cost.
 
