@@ -65,8 +65,8 @@ docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $Imdb_Key $Imdb_DB $Imd
 
 ## Exploring the data
 
-* Open Azure Portal and navigate to the Cosmos DB blade created above
-* Select Data Explorer and open the container to see the data loaded
+- Open Azure Portal and navigate to the Cosmos DB blade created above
+- Select Data Explorer and open the container to see the data loaded
 
 ## Design Decisions
 
@@ -138,13 +138,13 @@ Cosmos DB is an excellent key-value cache with simple geo-distribution and repli
 
 Some general guidelines:
 
-* Use the native (SQL) API
-* Use a separate container for your key-value cache than your operational data
-* Use an efficient partition hash that distributes storage and access evenly (int mod x works well for numeric keys)
-* Use indexing [policies](https://docs.microsoft.com/en-us/azure/cosmos-db/index-policy) to turn off indexing for the value in a key-value store
-* Use direct access by ID and partition key for single document reads
-* Use Cosmos DB [TTL](https://docs.microsoft.com/en-us/azure/cosmos-db/time-to-live) to automatically remove old items
-* Use Cosmos DB [change feed](https://docs.microsoft.com/en-us/azure/cosmos-db/change-feed) to extract values into other systems
+- Use the native (SQL) API
+- Use a separate container for your key-value cache than your operational data
+- Use an efficient partition hash that distributes storage and access evenly (int mod x works well for numeric keys)
+- Use indexing [policies](https://docs.microsoft.com/en-us/azure/cosmos-db/index-policy) to turn off indexing for the value in a key-value store
+- Use direct access by ID and partition key for single document reads
+- Use Cosmos DB [TTL](https://docs.microsoft.com/en-us/azure/cosmos-db/time-to-live) to automatically remove old items
+- Use Cosmos DB [change feed](https://docs.microsoft.com/en-us/azure/cosmos-db/change-feed) to extract values into other systems
 
 ## Conclusion
 
@@ -267,3 +267,39 @@ where array_length(m.movies) > 1
 order by m.textSearch, m.actorId
 
 ```
+
+## CI-CD
+
+This repo uses [GitHub Actions](/.github/workflows/dockerCI.yml) for Continuous Integration.
+
+- CI supports pushing to Azure Container Registry or DockerHub
+- The action is setup to execute on a PR or commit to ```master```
+  - The action does not run on commits to branches other than ```master```
+- The action always publishes an image with the ```:beta``` tag
+- If you tag the repo with a version i.e. ```v1.0.8``` the action will also
+  - Tag the image with ```:1.0.8```
+  - Tag the image with ```:latest```
+  - Note that the ```v``` is case sensitive (lower case)
+
+### Pushing to Azure Container Registry
+
+In order to push to ACR, you must create a Service Principal that has push permissions to the ACR and set the following ```secrets``` in your GitHub repo:
+
+- Azure Login Information
+  - TENANT
+  - SERVICE_PRINCIPAL
+  - SERVICE_PRINCIPAL_SECRET
+
+- ACR Information
+  - ACR_REG
+  - ACR_REPO
+  - ACR_IMAGE
+
+### Pushing to DockerHub
+
+In order to push to DockerHub, you must set the following ```secrets``` in your GitHub repo:
+
+- DOCKER_REPO
+- DOCKER_USER
+- DOCKER_PAT
+  - Personal Access Token

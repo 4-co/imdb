@@ -7,9 +7,10 @@
   "extensions": [
     "ms-dotnettools.csharp",
     "eamodio.gitlens",
+    "ms-azuretools.vscode-docker",
     "davidanson.vscode-markdownlint",
-    "gruntfuggly.todo-tree",
-    "ms-azuretools.vscode-docker"
+    "streetsidesoftware.code-s",
+    "gruntfuggly.todo-tree"
   ],
 
   // Run Bash script in .devcontainer directory
