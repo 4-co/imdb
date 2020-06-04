@@ -48,7 +48,7 @@ jobs:
         docker build . -t image
 
     - name: Docker Push
-      if: ${{ env.DOCKER_PAT != '' && env.DOCKER_REPO != '' && env.DOCKER_USER != '' }}"
+      if: ${{ $DOCKER_PAT != '' && $DOCKER_REPO != '' && $DOCKER_USER != '' }}"
       run: |
         ## login to docker hub
         echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
@@ -75,7 +75,7 @@ jobs:
         docker push $DOCKER_REPO
 
     - name: ACR Push
-      if: ${{ env.SERVICE_PRINCIPAL_SECRET != '' && env.TENANT != '' && env.SERVICE_PRINCIPAL != '' && env.KEYVAULT_NAME != '' && env.ACR_REG != '' && env.ACR_REPO != '' && env.ACR_IMAGE != '' }}"
+      if: ${{ $SERVICE_PRINCIPAL_SECRET != '' && $TENANT != '' && $SERVICE_PRINCIPAL != '' && $KEYVAULT_NAME != '' && $ACR_REG != '' && $ACR_REPO != '' && $ACR_IMAGE != '' }}"
       run: |
         # login to Azure
         az login --service-principal -u ${SERVICE_PRINCIPAL} --tenant ${TENANT} -p ${SERVICE_PRINCIPAL_SECRET}
