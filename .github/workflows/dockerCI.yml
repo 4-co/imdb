@@ -22,34 +22,35 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
+      # Docker repo information
       DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
       DOCKER_USER: ${{ secrets.DOCKER_USER }}
       DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
+
+      # Azure login information
+      TENANT: ${{ secrets.TENANT }}
+      SERVICE_PRINCIPAL: ${{ secrets.SERVICE_PRINCIPAL }}
+      SERVICE_PRINCIPAL_SECRET: ${{ secrets.SERVICE_PRINCIPAL_SECRET }}
+
+      # ACR repo information
+      ACR_REG: ${{ secrets.ACR_REG }}
+      ACR_REPO: ${{ secrets.ACR_REPO }}
+      ACR_IMAGE: ${{ secrets.ACR_IMAGE }}
 
     steps:
     - uses: actions/checkout@v1
 
     - name: Build Container
-      run: docker build . -t image
-
-    - name: Login to registry
-      if: ${{ env.DOCKER_PAT != '' && env.DOCKER_REPO != '' && env.DOCKER_USER != '' }}"
-      run: |
-        # Login to registry
-
-        # You must add the following secrets to github
-        #    DOCKER_REPO - your docker hub repo name
-        #    DOCKER_USER - your docker hub user name
-        #    DOCKER_PAT  - the personal access token for docker hub
-
-        ## login to docker hub
-        echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
+      run: docker build . -t imdb
 
     - name: Docker Push
       if: ${{ env.DOCKER_PAT != '' && env.DOCKER_REPO != '' && env.DOCKER_USER != '' }}"
       run: |
+        ## login to docker hub
+        echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
+
         # tag the image with :beta
-        docker tag image ${DOCKER_REPO}:beta
+        docker tag imdb ${DOCKER_REPO}:beta
 
         # Tag image based on repo tag if a github label
         if [[ "${{ github.ref }}" == "refs/tags/"* ]]
@@ -62,9 +63,50 @@ jobs:
           VERSION=$(echo $VERSION | sed -e 's/^v//')
 
           # tag the image with :Version and :latest
-          docker tag image ${DOCKER_REPO}:$VERSION
-          docker tag image ${DOCKER_REPO}:latest
+          docker tag imdb ${DOCKER_REPO}:$VERSION
+          docker tag imdb ${DOCKER_REPO}:latest
         fi
 
         # Push to the repo
         docker push $DOCKER_REPO
+
+    - name: ACR Push
+      if: ${{ env.SERVICE_PRINCIPAL_SECRET != '' && env.TENANT != '' && env.SERVICE_PRINCIPAL != '' && env.KEYVAULT_NAME != '' && env.ACR_REG != '' && env.ACR_REPO != '' && env.ACR_IMAGE !='' }}"
+      run: |
+        # login to Azure
+        az login --service-principal -u ${SERVICE_PRINCIPAL} --tenant ${TENANT} -p ${SERVICE_PRINCIPAL_SECRET}
+
+        # login to acr
+        az acr login -n ${ACR_REG}
+        
+        # tag the repo with :beta
+        docker tag imdb $ACR_REPO:beta
+
+        # Show the ACR repository informaion to confirm SHA
+        echo "${ACR_IMAGE}:beta info:"
+        az acr repository show -n ${ACR_REG} --image ${ACR_IMAGE}:beta -o table
+
+        # Tag image based on repo tag if a github label
+        if [[ "${{ github.ref }}" == "refs/tags/"* ]]
+        then
+
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+        
+          # Strip "v" prefix from tag name
+          VERSION=$(echo $VERSION | sed -e 's/^v//')
+          
+          # tag the image with :version and :stable
+          docker tag imdb $ACR_REPO:$VERSION
+          docker tag imdb $ACR_REPO:latest
+          
+          # Show the ACR repository informaion to confirm SHA
+          echo "${ACR_IMAGE}:${VERSION} info:"
+          az acr repository show -n ${ACR_REG} --image ${ACR_IMAGE}:${VERSION} -o table
+
+          echo "${ACR_IMAGE}:stable info:"
+          az acr repository show -n ${ACR_REG} --image ${ACR_IMAGE}:stable -o table
+        fi
+
+        # Push to the repo
+        docker push ${ACR_IMAGE}
