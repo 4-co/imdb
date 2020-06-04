@@ -23,13 +23,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Docker repo information
+      # set these secrets to push to docker hub
       DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
       DOCKER_USER: ${{ secrets.DOCKER_USER }}
       DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
 
-      # uncomment the below lines and set the appropriate secrets
-      # to push to Azure Container Registry
-      
+      # Set these secrets to push to Azure Container Registry
       # Azure login information
       TENANT: ${{ secrets.TENANT }}
       SERVICE_PRINCIPAL: ${{ secrets.SERVICE_PRINCIPAL }}
