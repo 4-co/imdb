@@ -39,7 +39,7 @@ export Imdb_DB="imdb"
 export Imdb_Col="movies"
 
 # Resource Group Name
-export Imdb_RG=${Imdb_Name}-cosmos-rg
+export Imdb_RG=${Imdb_Name}-rg-cosmos
 
 # create a new resource group
 az group create -n $Imdb_RG -l $Imdb_Location
