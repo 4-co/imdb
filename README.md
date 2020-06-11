@@ -37,6 +37,7 @@ az cosmosdb check-name-exists -n ${Imdb_Name}
 export Imdb_Location="centralus"
 export Imdb_DB="imdb"
 export Imdb_Col="movies"
+export Imdb_RW_Key='az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv'
 
 # Resource Group Name
 export Imdb_RG=${Imdb_Name}-rg-cosmos
@@ -56,7 +57,7 @@ az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG --throughp
 az cosmosdb sql container create -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
 
 # run the docker IMDb Import app
-docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $(az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv) $Imdb_DB $Imdb_Col
+docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
 
 ```
 
