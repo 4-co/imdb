@@ -27,8 +27,8 @@ This takes several minutes to run
 ```bash
 
 # replace xxxx with a unique identifier (or replace the entire name)
-# do not use punctuation or uppercase (a-z, 0-9)
-export Imdb_Name="imdbcosmosxxxx"
+# do not use punctuation or upper case (a-z, 0-9)
+export Imdb_Name=[your Cosmos DB name]
 
 ## if true, change name to avoid DNS failure on create
 az cosmosdb check-name-exists -n ${Imdb_Name}
@@ -112,15 +112,17 @@ A good example of what you would not want to embed is the individual ratings. So
 
 ## Searching
 
-Some of the sample queries search the Movie Title or Actor Name using a "like" query. For a small amount of documents searching across a small number of fields, this works fine. However, if search is a primary use case or you want "full text" search, you should integrate Cosmos DB with Azure Search as the queries will be richer, faster and less expensive.
+> Cosmos DB recently updated their string function performance dramatically
+>
+> Read more about it [here](https://devblogs.microsoft.com/cosmosdb/new-string-function-performance-improvements-and-case-insensitive-search/)
+
+Some of the sample queries search the Movie Title or Actor Name using a "contains" query. For a small amount of documents searching across a small number of fields, this works fine. However, if search is a primary use case or you want "full text" search, you should integrate Cosmos DB with [Azure Cognitive Search](https://docs.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb) as the queries will be richer, faster and less expensive.
 
 The Genre search uses an "array_contains" search. In a relational model, you would likely have a MoviesGenres table and use a join (a Movie has 1..n Genres)
 
-Note that in Cosmos DB, search is case sensitive, so searching Movies for "matrix" will return zero documents but searching for "Matrix" will return the correct number of documents. We chose to address this by adding a "textSearch" field that is a lowercase version of the title or actor name (it could contain other keywords as well). This adds size to the document, but prevents having to use contains(lower(m.title), 'matrix'). By using lower(), you are doing a full table scan and not using the index. For 1300 movies, this is minimal work, but at scale, it will be slow and expensive.
+We  create composite indices on title, movieId for Movies and name, actorId for Actors. Since Movies and Actors may have the same name, this allows us to ensure deterministic ordering. To order by a composite key in Cosmos DB, you must first create the composite index. See [index.json](./index.json) for the index definitions.
 
-Order by is also case sensitive in Cosmos DB, so Alice Through the Looking Glass sorts before Alice in Wonderland. We use the textSearch field to avoid this behavior. We also create composite indices on textSearch, movieId for Movies and textSearch, actorId for Actors. Since Movies and Actors may have the same name, this allows us to ensure deterministic ordering. To order by a composite key in Cosmos DB, you must first create the composite index. See [index.json](./index.json) for the index definitions.
-
-Again, for large or advanced search workloads, you should integrate Azure Search (or SOLR) as part of the solution, using the Cosmos DB [change feed](https://docs.microsoft.com/en-us/azure/cosmos-db/change-feed) to keep the index fresh is a proven model.
+Again, for large or advanced search workloads, you should integrate Azure Cognitive Search as part of the solution. More information is [here](https://docs.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb)
 
 ## Understanding RUs
 
@@ -163,19 +165,19 @@ select * from m
 select m.movieId, m.type, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.type = 'Movie'
-order by m.textSearch, m.movieId
+order by m.title, m.movieId
 
 # List of Genres
-select m.genre
+select value m.id
 from m
 where m.type = 'Genre'
-order by m.genre
+order by m.id
 
 # List of Actors
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
 where m.type = 'Actor'
-order by m.textSearch, m.actorId
+order by m.name, m.actorId
 
 # Simple transform
 select value m.title
@@ -196,7 +198,7 @@ where m.id = 'tt0133093'
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.movieId in ('tt0167260', 'tt0419781', 'tt0367495', 'tt0120737', 'tt0358456')
-order by m.textSearch, m.movieId
+order by m.title, m.movieId
 
 # The API has a more efficient way to retrieve exactly one document by ID
 #   It is faster and consumes less RUs and should be used in most scenarios
@@ -209,32 +211,31 @@ select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movi
 from m
 where m.id = 'nm0000206'
 
-# Movies Jennifer Connelly is in
+# Movies Jennifer Connelly appears in
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where array_contains(m.roles, { actorId: 'nm0000124' }, true)
-order by m.textSearch, m.movieId
+order by m.title, m.movieId
 
 # Another way
-# note you can't use select * or select m.*
+# note you cannot use select * or select m.*
 select m.movieId, m.type, m.title, m.year, m.runtime, m.genres, m.roles
 from movies m
 join r in m.roles
 where r.actorId = 'nm0000124'
-order by m.textSearch, m.movieId
+order by m.title, m.movieId
 
 # Action Movies
-# Note this is case sensitive, so 'action' won't work
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where array_contains(m.genres, 'Action')
-order by m.textSearch, m.movieId
+order by m.title, m.movieId
 
 # Search movie title for 'rings'
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
-where contains(m.textSearch, 'rings')
-order by m.textSearch, m.movieId
+where contains(m.title, 'rings')
+order by m.title, m.movieId
 
 # Long movies
 select top 5 m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
@@ -250,54 +251,33 @@ order by m.rating desc
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
 where m.year = 2006
-order by m.textSearch, m.movieId
+order by m.title, m.movieId
 
 # Search actor names for 'tom'
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
-where contains(m.textSearch, 'tom')
-order by m.textSearch, m.actorId
+where contains(m.name, 'tom')
+order by m.name, m.actorId
 
 # Actors in more than one movie
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
 where array_length(m.movies) > 1
-order by m.textSearch, m.actorId
+order by m.name, m.actorId
 
 ```
 
-## CI-CD
+## Contributing
 
-This repo uses [GitHub Actions](/.github/workflows/dockerCI.yml) for Continuous Integration.
+This project welcomes contributions and suggestions. Most contributions require you to agree to a
+Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
+the rights to use your contribution. For details, visit [Microsoft Contributor License Agreement](https://cla.opensource.microsoft.com).
 
-- CI supports pushing to Azure Container Registry or DockerHub
-- The action is setup to execute on a PR or commit to ```master```
-  - The action does not run on commits to branches other than ```master```
-- The action always publishes an image with the ```:beta``` tag
-- If you tag the repo with a version i.e. ```v1.0.8``` the action will also
-  - Tag the image with ```:1.0.8```
-  - Tag the image with ```:latest```
-  - Note that the ```v``` is case sensitive (lower case)
+When you submit a pull request, a CLA bot will automatically determine whether you need to provide
+a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
+provided by the bot. You will only need to do this once across all repos using our CLA.
 
-### Pushing to Azure Container Registry
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 
-In order to push to ACR, you must create a Service Principal that has push permissions to the ACR and set the following ```secrets``` in your GitHub repo:
-
-- Azure Login Information
-  - TENANT
-  - SERVICE_PRINCIPAL
-  - SERVICE_PRINCIPAL_SECRET
-
-- ACR Information
-  - ACR_REG
-  - ACR_REPO
-  - ACR_IMAGE
-
-### Pushing to DockerHub
-
-In order to push to DockerHub, you must set the following ```secrets``` in your GitHub repo:
-
-- DOCKER_REPO
-- DOCKER_USER
-- DOCKER_PAT
-  - Personal Access Token
+For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
+contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments
