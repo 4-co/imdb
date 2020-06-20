@@ -120,14 +120,14 @@ namespace CSE.ImdbImport
                         new Collection<CompositePath>
                         {
                             // actors - order by textSearch ASC, actorId ASC
-                            new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/textSearch" },
+                            new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/name" },
                             new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/actorId" }
                         },
 
                         new Collection<CompositePath>
                         {
                             // movies - order by textSearch ASC, movieId ASC
-                            new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/textSearch" },
+                            new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/title" },
                             new CompositePath { Order = CompositePathSortOrder.Ascending, Path = "/movieId" }
                         }
                     };
