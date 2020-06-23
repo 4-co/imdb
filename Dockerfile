@@ -28,8 +28,8 @@ WORKDIR /app
 RUN groupadd -g 4120 imdb && \
     useradd -r  -u 4120 -g imdb imdb && \
     mkdir -p /home/imdb && \
-    chown -R imdb:imdb /home/imdb \
-    chown -R imdb:imdb /app \
+    chown -R imdb:imdb /home/imdb && \
+    chown -R imdb:imdb /app && \
     chown -R imdb:imdb /data
 
 ### run as imdb user
