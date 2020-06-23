@@ -28,103 +28,56 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      # Docker repo information
-      # set these secrets to push to docker hub
+      # copy the config value to environment variables
+      # do not copy the actual secrets!
+
       DOCKER_REPO: ${{ secrets.DOCKER_REPO }}
-      DOCKER_USER: ${{ secrets.DOCKER_USER }}
-      DOCKER_PAT: ${{ secrets.DOCKER_PAT }}
 
-      # Set these secrets to push to Azure Container Registry
-      # Azure login information
-      TENANT: ${{ secrets.TENANT }}
-      SERVICE_PRINCIPAL: ${{ secrets.SERVICE_PRINCIPAL }}
-      SERVICE_PRINCIPAL_SECRET: ${{ secrets.SERVICE_PRINCIPAL_SECRET }}
-
-      # ACR repo information
-      ACR_REG: ${{ secrets.ACR_REG }}
-      ACR_REPO: ${{ secrets.ACR_REPO }}
-      ACR_IMAGE: ${{ secrets.ACR_IMAGE }}
-
-      AZURE_SET: false
+      # used in if: conditions
       DOCKER_SET: false
-      ACR_SET: false
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
 
     - name: Set conditions
       run: |
-        echo "::set-env name=AZURE_SET::${{ env.SERVICE_PRINCIPAL_SECRET != '' && env.TENANT != '' && env.SERVICE_PRINCIPAL != '' && env.KEYVAULT_NAME != '' }}"
-        echo "::set-env name=DOCKER_SET::${{ env.DOCKER_PAT != '' && env.DOCKER_REPO != '' && env.DOCKER_USER != '' }}"
-        echo "::set-env name=ACR_SET::${{ env.ACR_REG != '' && env.ACR_REPO != '' && env.ACR_IMAGE !='' }}"
+        # check that all Docker secrets are set
+        if [[ "${{ secrets.DOCKER_PAT }}" != "" && "${{ secrets.DOCKER_REPO }}" != "" && "${{ secrets.DOCKER_USER }}" != "" ]];
+        then
+          echo "::set-env name=DOCKER_SET::true"
+        fi
+        
+    - name: Docker Pull
+      run: |
+        # Pull the latest image if needed
+        # This doesn't have to be a separate step, but makes the output easier to read and debug
+        docker pull mcr.microsoft.com/dotnet/core/sdk:3.1
+        docker pull mcr.microsoft.com/dotnet/core/aspnet:3.1-alpine
 
     - name: Build Container
-      run: docker build . -t image
+      run: docker build . -t imdb
 
     - name: Docker Push
       if: ${{ env.DOCKER_SET == 'true' }}
       run: |
-        ## login to docker hub
+
+        # login to dockerhub
         echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
 
-        # tag the image with :beta
-        docker tag image ${DOCKER_REPO}:beta
+        # tag the repo with :beta
+        docker tag imdb $DOCKER_REPO:beta
 
         # Tag image based on repo tag if a github label
         if [[ "${{ github.ref }}" == "refs/tags/"* ]]
         then
 
           # Strip git ref prefix from version
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,'  | sed -e 's/^v//')
 
-          # Strip "v" prefix from tag name
-          VERSION=$(echo $VERSION | sed -e 's/^v//')
-
-          # tag the image with :Version and :latest
-          docker tag image ${DOCKER_REPO}:$VERSION
-          docker tag image ${DOCKER_REPO}:latest
+          # tag the image with :version and :stable
+          docker tag imdb $DOCKER_REPO:$VERSION
+          docker tag imdb $DOCKER_REPO:stable
         fi
 
         # Push to the repo
         docker push $DOCKER_REPO
-
-    - name: ACR Push
-      if: ${{ env.ACR_SET == 'true' && env.AZURE_SET == 'true' }}
-      run: |
-        # login to Azure
-        az login --service-principal -u ${SERVICE_PRINCIPAL} --tenant ${TENANT} -p ${SERVICE_PRINCIPAL_SECRET}
-
-        # login to acr
-        az acr login -n ${ACR_REG}
-        
-        # tag the repo with :beta
-        docker tag image $ACR_REPO:beta
-
-        # Show the ACR repository informaion to confirm SHA
-        echo "${ACR_IMAGE}:beta info:"
-        az acr repository show -n ${ACR_REG} --image ${ACR_IMAGE}:beta -o table
-
-        # Tag image based on repo tag if a github label
-        if [[ "${{ github.ref }}" == "refs/tags/"* ]]
-        then
-
-          # Strip git ref prefix from version
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-        
-          # Strip "v" prefix from tag name
-          VERSION=$(echo $VERSION | sed -e 's/^v//')
-          
-          # tag the image with :version and :stable
-          docker tag image $ACR_REPO:$VERSION
-          docker tag image $ACR_REPO:latest
-          
-          # Show the ACR repository informaion to confirm SHA
-          echo "${ACR_IMAGE}:${VERSION} info:"
-          az acr repository show -n ${ACR_REG} --image ${ACR_IMAGE}:${VERSION} -o table
-
-          echo "${ACR_IMAGE}:stable info:"
-          az acr repository show -n ${ACR_REG} --image ${ACR_IMAGE}:stable -o table
-        fi
-
-        # Push to the repo
-        docker push ${ACR_IMAGE}
