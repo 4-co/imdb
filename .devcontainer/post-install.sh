@@ -1,10 +1,8 @@
 #!/bin/sh
 
-date >> ~/status
-echo "post-install.sh ..." >> ~/status
-
 # copy vscode files
-mkdir -p .vscode && cp docs/vscode-template/* .vscode
+mkdir -p .vscode
+cp docs/vscode-template/* .vscode
 
 # run dotnet restore
 dotnet restore src/imdb-import.csproj
@@ -16,21 +14,15 @@ dotnet restore src/imdb-import.csproj
 echo "" >> ~/.bashrc
 echo ". ${PWD}/.devcontainer/.bashrc-append" >> ~/.bashrc
 
-date >> ~/status
-echo "Updating Packages ..." >> ~/status
+# docker bash-completion
+sudo curl https://raw.githubusercontent.com/docker/docker-ce/master/components/cli/contrib/completion/bash/docker -o /etc/bash_completion.d/docker
 
 DEBIAN_FRONTEND=noninteractive
+
+# update apt-get
 sudo apt-get update
-
-date >> ~/status
-echo "Installing basics ..." >> ~/status
-
 sudo apt-get install -y --no-install-recommends apt-utils dialog
 
+# update / install utils
+sudo apt-get install -y --no-install-recommends dnsutils httpie bash-completion curl wget git unzip
 DEBIAN_FRONTEND=dialog
-
-# run dotnet restore
-dotnet restore src/imdb-import.csproj
-
-date >> ~/status
-echo "Done" >> ~/status
