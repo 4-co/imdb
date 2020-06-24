@@ -126,7 +126,7 @@ A good example of what you would not want to embed is the individual ratings. So
 
 ## Searching
 
-Some of the sample queries search the Movie Title or Actor Name using a "contains" query. For a small amount of documents searching across a small number of fields, this works well. However, if search is a primary use case or you want "full text" search, you should integrate Cosmos DB with [Azure Cognitive Search](https://docs.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb) as the queries will be richer, faster and less expensive.
+Some of the sample queries search the Movie Title or Actor Name using a `contains` query. For a small amount of documents searching across a small number of fields, this works well. However, if search is a primary use case or you want "full text" search, you should integrate Cosmos DB with [Azure Cognitive Search](https://docs.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb) as the queries will be richer, faster and less expensive.
 
 The Genre search filters query results by matching an array of Genres within a movie. In a relational model, you would likely have a MoviesGenres table and use a join (a Movie has 1..n Genres). As an optimization, we created the genreSearch field which is a | delimited string of the Genres array. The `array_contains` function is case sensitive and can be costly. By using the `contains` function against the genreSearch field the search is optimized for performance and cost. With the recent [improvement](https://devblogs.microsoft.com/cosmosdb/new-string-function-performance-improvements-and-case-insensitive-search/) in Cosmos DB string functions, we saw a 29% performance improvement and a 5% RU (cost) reduction.
 
