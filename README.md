@@ -118,7 +118,7 @@ Movies have actors (and producers and directors and crew ...) and Actors star in
 
 In a relational model, you would normally have a "MoviesActors" table and join. In a document model, you normally embed unless the embedded data is fast changing or potentially grows to be very large. More information [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data)
 
-A common usage for this data would be to show the Actor and what movies they were in (or a Movie and the Actors in it). If you embed just the ID, this would be two serial queries. One to get the Actor and the Movie IDs and a second one to pull back the movie information. Given the size of the documents, we chose to optimize this by embedded the key Movie fields into the Actor document (and Actors into the Movie document). This simplifies reads but complicate writes. In a high read situation (like showing movies on a web site), this is a good optimization. Just keep an eye on document size and update frequency / complexity.
+A common usage for this data would be to retrieve the Actor and the movies in which they played a role (or a Movie and the Actors in it). Embedding only the movie ID in the Actor document would require two sequential queries. One to get the Actor and the Movie IDs and a second one to retrieve the movie information. Given the size of the documents, we chose to optimize the data structure for these queries by including key Movie fields in the Actor document and, similarly, Actors into the Movie document. This simplifies reads, but complicate writes. In a high read situation (e.g., showing movies on a web site), this is a good optimization. As you optimize be sure to monitor document size and update frequency and complexity.
 
 > When you update a single field in a document, Cosmos DB writes the entire document which can change your IO requirements compared to a relational DBMS.
 
@@ -128,15 +128,15 @@ A good example of what you would not want to embed is the individual ratings. So
 
 Some of the sample queries search the Movie Title or Actor Name using a "contains" query. For a small amount of documents searching across a small number of fields, this works well. However, if search is a primary use case or you want "full text" search, you should integrate Cosmos DB with [Azure Cognitive Search](https://docs.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb) as the queries will be richer, faster and less expensive.
 
-The Genre search searches an array of Genres within a movie. In a relational model, you would likely have a MoviesGenres table and use a join (a Movie has 1..n Genres). As an optimization, we created the genreSearch field which is a | delimited string of the Genres array. Because array_contains is case sensitive, this optimizes our search query from a performance and cost perspective. With the recent [improvement](https://devblogs.microsoft.com/cosmosdb/new-string-function-performance-improvements-and-case-insensitive-search/) in Cosmos DB string functions, we saw a 29% performance improvement and a 5% RU (cost) reduction.
+The Genre search filters query results by matching an array of Genres within a movie. In a relational model, you would likely have a MoviesGenres table and use a join (a Movie has 1..n Genres). As an optimization, we created the genreSearch field which is a | delimited string of the Genres array. The `array_contains` function is case sensitive and can be costly. By using the `contains` function against the genreSearch field the search is optimized for performance and cost. With the recent [improvement](https://devblogs.microsoft.com/cosmosdb/new-string-function-performance-improvements-and-case-insensitive-search/) in Cosmos DB string functions, we saw a 29% performance improvement and a 5% RU (cost) reduction.
 
 Order by is case sensitive in Cosmos DB, so sorting Movies by title will result in "Alice Through the Looking Glass" appearing before "Alice in Wonderland". We chose to address this by adding a "textSearch" field that is a lowercase version of the title or actor name. This adds size to the document, but ensures results are ordered as expected.
 
-We also create composite indices on textSearch, movieId for Movies and textSearch, actorId for Actors. Since Movies and Actors may have the same name, this allows us to ensure deterministic ordering. To order by a composite key in Cosmos DB, you must first create the composite index. See [index.json](./index.json) for the index definitions.
+We also create two composite indices with textSearch using movieId for Movies and actorId for Actors. Since Movies and Actors may have the same name using a composite index ensures deterministic ordering. See [index.json](./index.json) for the index definitions.
 
 ## Understanding RUs
 
-A best practice is to baseline the RUs for each "action" and include as part of your testing suite. Changes to your document model or query can result in significant changes in RUs. The Cosmos DB API has the ability to capture RUs for each action, so building a baseline is straight forward.
+A best practice is to baseline the RUs for each "action" and include as part of your testing suite. Changes to your document model or query can result in significant changes in RU usage. The Cosmos DB API has the ability to capture RUs for each action, so building a baseline is straight forward.
 
 General best practices like limiting the columns selected, limiting the documents selected and avoiding table scans are important. The deeper a filter condition is in the document model, the more work the query processor has to do (and the more RUs it consumes), so keep frequent predicates at the root whenever possible and/or use indexing [policies](https://docs.microsoft.com/en-us/azure/cosmos-db/index-policy) to optimize common queries.
 
@@ -158,7 +158,7 @@ Some general guidelines:
 
 ## Conclusion
 
-Unlike relational modeling where specific normal forms are verifiable, document modeling is a collection of decisions based heavily on usage patterns. There is no "right" or "correct" answer but there are best practices and trade offs based on usage. It is important to understand the usage patterns early so that you can optimize the document model.
+Unlike relational modeling where specific normal forms are verifiable, document modeling is a collection of decisions based heavily on usage patterns. There is not a definitively correct answer, but there are best practices and trade-offs based on usage. It is important to understand the usage patterns early so that you can optimize the document model.
 
 ## Sample Queries
 
