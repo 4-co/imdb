@@ -18,17 +18,27 @@ Used with permission.
 
 ```
 
+> Visual Studio Codespaces is the easiest way to evaluate the IMDb data as all of the prerequisites are automatically installed
+>
+> Follow the setup steps in the [Helium readme](https://github.com/retaildevcrews/helium) to setup Codespaces
+
+## Prerequisites
+
+- Bash shell (tested on Visual Studio Codespaces, Cloud Shell, Mac, Ubuntu, Windows with WSL2)
+  - Will not work with WSL1
+- .NET Core SDK 3.1 ([download](https://dotnet.microsoft.com/download))
+- Azure CLI ([download](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest))
+- Visual Studio Code (optional) ([download](https://code.visualstudio.com/download))
+
 ## Create Cosmos DB Server, Database and Container and load the IMDb sample data
 
 > The `az cosmosdb sql` extension is currently in preview and is subject to change
 
-This takes several minutes to run
-
 ```bash
 
-# replace xxxx with a unique identifier (or replace the entire name)
+# replace with a unique name
 # do not use punctuation or uppercase (a-z, 0-9)
-export Imdb_Name="imdbcosmosxxxx"
+export Imdb_Name={your Cosmos DB name}
 
 ## if true, change name to avoid DNS failure on create
 az cosmosdb check-name-exists -n ${Imdb_Name}
@@ -46,6 +56,7 @@ export Imdb_RG=${Imdb_Name}-rg-cosmos
 az group create -n $Imdb_RG -l $Imdb_Location
 
 # create the Cosmos DB server
+# this command takes several minutes to run
 az cosmosdb create -g $Imdb_RG -n $Imdb_Name
 
 # create the database
@@ -53,10 +64,13 @@ az cosmosdb create -g $Imdb_RG -n $Imdb_Name
 az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG --throughput 1000
 
 # create the container
-# /partitionKey is the partition key
+# /partitionKey is the partition key (case sensitive)
 az cosmosdb sql container create -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
 
-# run the docker IMDb Import app
+# run the IMDb Import app from dotnet
+dotnet run -- $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
+
+# run the IMDb Import app from Docker
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
 
 ```
@@ -76,17 +90,17 @@ We chose to include different document types in the same container for simplicit
 
 Each document has a type field that is one of: Movie, Actor or Genre
 
-ID has to be unique, so we use movieId, actorId or genre as the ID. Reading by ID is the fastest (and cheapest) way to retrieve a document.
+ID has to be unique, so we use movieId, actorId or genre as the ID. Reading by ID is the fastest (and least expensive) way to retrieve a document.
 
 ## Partitioning Strategy
 
 The Cosmos DB partition key used is /partitionKey and is computed by taking the integer portion of movieId or actorId mod 10 and converting to a string which results in 10 partitions ("0" - "9")
 
-Note: the partition key must be a string
+> The partition key must be a string
+>
+> Genres use a partitionKey of "0" as there are only 19 Genres
 
-Note: Genres use a partitionKey of "0" as there are only 19 Genres
-
-You want your partition key to be well distributed from a storage and usage perspective. For Actors, a good partition key could be birthYear mod x. However, this would likely not be a good partition key for Movies as a high percentage of the requests are likely to be for the current year which would create a hot partition. A hash of the title would likely be a good choice. The elements movieId (and actorId) are integers with a character preface (tt or nm) which means a mod x on the integer portion is a good choice as well and is the partition key we chose.
+Your partition key should be well distributed from a storage and usage perspective. For Actors, a good partition key could be birthYear mod x. However, this would likely not be a good partition key for Movies as a high percentage of the requests are likely to be for the current year which would create a hot partition. A hash of the title would likely be a good choice. The elements movieId (and actorId) are integers with a character preface (tt or nm) which means a mod x on the integer portion is a good choice as well and is the partition key we chose.
 
 In order to use the Cosmos DB API to read a single 1K document using 1 RU you need to know the partition key. So, having a value that you can compute the partition key from is a best practice. Note that some frameworks (e.g., Spring Data JPA Repositories) don't support the single document read API and always use the query API. This can impact cost significantly depending on the access pattern.
 
@@ -104,23 +118,21 @@ Movies have actors (and producers and directors and crew ...) and Actors star in
 
 In a relational model, you would normally have a "MoviesActors" table and join. In a document model, you normally embed unless the embedded data is fast changing or potentially grows to be very large. More information [here](https://docs.microsoft.com/en-us/azure/cosmos-db/modeling-data)
 
-A common usage for this data would be to show the Actor and what movies they were in (or a Movie and the Actors in it). If you embed just the ID, this would be two serial queries. One to get the Actor and the Movie IDs and a second one to pull back the movie information. Given the size of the documents, we chose to optimize this by embedded the entire Movie into the Actor document (and Actors into the Movie document). This simplifies reads but complicate writes. In a high read situation (like showing movies on a web site), this is a good optimization. Just keep an eye on document size and update frequency / complexity.
+A common usage for this data would be to show the Actor and what movies they were in (or a Movie and the Actors in it). If you embed just the ID, this would be two serial queries. One to get the Actor and the Movie IDs and a second one to pull back the movie information. Given the size of the documents, we chose to optimize this by embedded the key Movie fields into the Actor document (and Actors into the Movie document). This simplifies reads but complicate writes. In a high read situation (like showing movies on a web site), this is a good optimization. Just keep an eye on document size and update frequency / complexity.
 
-Note: When you update a single field in a document, Cosmos DB writes the entire document which can change your IO requirements compared to a relational DBMS.
+> When you update a single field in a document, Cosmos DB writes the entire document which can change your IO requirements compared to a relational DBMS.
 
 A good example of what you would not want to embed is the individual ratings. Some movies have over 100K ratings, so you would want to keep the individual ratings in a separate container and have a process that summarizes and updates the aggregate every n minutes.
 
 ## Searching
 
-Some of the sample queries search the Movie Title or Actor Name using a "like" query. For a small amount of documents searching across a small number of fields, this works fine. However, if search is a primary use case or you want "full text" search, you should integrate Cosmos DB with Azure Search as the queries will be richer, faster and less expensive.
+Some of the sample queries search the Movie Title or Actor Name using a "contains" query. For a small amount of documents searching across a small number of fields, this works well. However, if search is a primary use case or you want "full text" search, you should integrate Cosmos DB with [Azure Cognitive Search](https://docs.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb) as the queries will be richer, faster and less expensive.
 
-The Genre search uses an "array_contains" search. In a relational model, you would likely have a MoviesGenres table and use a join (a Movie has 1..n Genres)
+The Genre search searches an array of Genres within a movie. In a relational model, you would likely have a MoviesGenres table and use a join (a Movie has 1..n Genres). As an optimization, we created the genreSearch field which is a | delimited string of the Genres array. Because array_contains is case sensitive, this optimizes our search query from a performance and cost perspective. With the recent [improvement](https://devblogs.microsoft.com/cosmosdb/new-string-function-performance-improvements-and-case-insensitive-search/) in Cosmos DB string functions, we saw a 29% performance improvement and a 5% RU (cost) reduction.
 
-Note that in Cosmos DB, search is case sensitive, so searching Movies for "matrix" will return zero documents but searching for "Matrix" will return the correct number of documents. We chose to address this by adding a "textSearch" field that is a lowercase version of the title or actor name (it could contain other keywords as well). This adds size to the document, but prevents having to use contains(lower(m.title), 'matrix'). By using lower(), you are doing a full table scan and not using the index. For 1300 movies, this is minimal work, but at scale, it will be slow and expensive.
+Order by is case sensitive in Cosmos DB, so sorting Movies by title will result in "Alice Through the Looking Glass" appearing before "Alice in Wonderland". We chose to address this by adding a "textSearch" field that is a lowercase version of the title or actor name. This adds size to the document, but ensures results are ordered as expected.
 
-Order by is also case sensitive in Cosmos DB, so Alice Through the Looking Glass sorts before Alice in Wonderland. We use the textSearch field to avoid this behavior. We also create composite indices on textSearch, movieId for Movies and textSearch, actorId for Actors. Since Movies and Actors may have the same name, this allows us to ensure deterministic ordering. To order by a composite key in Cosmos DB, you must first create the composite index. See [index.json](./index.json) for the index definitions.
-
-Again, for large or advanced search workloads, you should integrate Azure Search (or SOLR) as part of the solution, using the Cosmos DB [change feed](https://docs.microsoft.com/en-us/azure/cosmos-db/change-feed) to keep the index fresh is a proven model.
+We also create composite indices on textSearch, movieId for Movies and textSearch, actorId for Actors. Since Movies and Actors may have the same name, this allows us to ensure deterministic ordering. To order by a composite key in Cosmos DB, you must first create the composite index. See [index.json](./index.json) for the index definitions.
 
 ## Understanding RUs
 
@@ -139,7 +151,7 @@ Some general guidelines:
 - Use the native (SQL) API
 - Use a separate container for your key-value cache than your operational data
 - Use an efficient partition hash that distributes storage and access evenly (int mod x works well for numeric keys)
-- Use indexing [policies](https://docs.microsoft.com/en-us/azure/cosmos-db/index-policy) to turn off indexing for the value in a key-value store
+- Use indexing [policies](https://docs.microsoft.com/en-us/azure/cosmos-db/index-policy) to turn off indexing for the values in a key-value store
 - Use direct access by ID and partition key for single document reads
 - Use Cosmos DB [TTL](https://docs.microsoft.com/en-us/azure/cosmos-db/time-to-live) to automatically remove old items
 - Use Cosmos DB [change feed](https://docs.microsoft.com/en-us/azure/cosmos-db/change-feed) to extract values into other systems
@@ -171,16 +183,18 @@ from m
 where m.type = 'Genre'
 order by m.genre
 
+# Simple transform
+# this returns an array of string
+select value m.genre
+from m
+where m.type = 'Genre'
+order by m.genre
+
 # List of Actors
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
 where m.type = 'Actor'
 order by m.textSearch, m.actorId
-
-# Simple transform
-select value m.title
-from m
-where m.type = 'Movie'
 
 # Unexpected behavior
 # This is a side effect of combining the document types in one container
@@ -212,11 +226,12 @@ where m.id = 'nm0000206'
 # Movies Jennifer Connelly is in
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
-where array_contains(m.roles, { actorId: 'nm0000124' }, true)
+where m.type = 'Movie'
+and array_contains(m.roles, { actorId: 'nm0000124' }, true)
 order by m.textSearch, m.movieId
 
 # Another way
-# note you can't use select * or select m.*
+# note you cannot use select * or select m.*
 select m.movieId, m.type, m.title, m.year, m.runtime, m.genres, m.roles
 from movies m
 join r in m.roles
@@ -224,80 +239,65 @@ where r.actorId = 'nm0000124'
 order by m.textSearch, m.movieId
 
 # Action Movies
-# Note this is case sensitive, so 'action' won't work
+# This query uses the genreSearch field discussed above
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
-where array_contains(m.genres, 'Action')
+where m.type = 'Movie'
+and contains(m.genreSearch, 'Action', true)
 order by m.textSearch, m.movieId
 
-# Search movie title for 'rings'
+# Search movie title for 'Rings'
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
-where contains(m.textSearch, 'rings')
+where m.type = 'Movie'
+and contains(m.title, 'Rings', true)
 order by m.textSearch, m.movieId
 
 # Long movies
 select top 5 m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
+where m.type = 'Movie'
 order by m.runtime desc
 
 # Highest rated movies
 select top 5 m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
+where m.type = 'Movie'
 order by m.rating desc
 
 # Movies by year
 select m.movieId, m.type, m.rating, m.votes, m.title, m.year, m.runtime, m.genres, m.roles
 from m
-where m.year = 2006
+where m.type = 'Movie'
+and m.year = 2006
 order by m.textSearch, m.movieId
 
-# Search actor names for 'tom'
+# Search actor names for 'Tom'
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
-where contains(m.textSearch, 'tom')
+where m.type = 'Actor'
+and contains(m.name, 'Tom', true)
 order by m.textSearch, m.actorId
 
 # Actors in more than one movie
 select m.actorId, m.type, m.name, m.birthYear, m.deathYear, m.profession, m.movies
 from m
-where array_length(m.movies) > 1
+where m.type = 'Actor'
+and array_length(m.movies) > 1
 order by m.textSearch, m.actorId
 
 ```
 
-## CI-CD
+## Contributing
 
-This repo uses [GitHub Actions](/.github/workflows/dockerCI.yml) for Continuous Integration.
+This project welcomes contributions and suggestions. Most contributions require you to agree to a
+Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
+the rights to use your contribution. For details, visit [Microsoft Contributor License Agreement](https://cla.opensource.microsoft.com).
 
-- CI supports pushing to Azure Container Registry or DockerHub
-- The action is setup to execute on a PR or commit to ```master```
-  - The action does not run on commits to branches other than ```master```
-- The action always publishes an image with the ```:beta``` tag
-- If you tag the repo with a version i.e. ```v1.0.8``` the action will also
-  - Tag the image with ```:1.0.8```
-  - Tag the image with ```:latest```
-  - Note that the ```v``` is case sensitive (lower case)
+When you submit a pull request, a CLA bot will automatically determine whether you need to provide
+a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
+provided by the bot. You will only need to do this once across all repos using our CLA.
 
-### Pushing to Azure Container Registry
-
-In order to push to ACR, you must create a Service Principal that has push permissions to the ACR and set the following ```secrets``` in your GitHub repo:
-
-- Azure Login Information
-  - TENANT
-  - SERVICE_PRINCIPAL
-  - SERVICE_PRINCIPAL_SECRET
-
-- ACR Information
-  - ACR_REG
-  - ACR_REPO
-  - ACR_IMAGE
-
-### Pushing to DockerHub
-
-In order to push to DockerHub, you must set the following ```secrets``` in your GitHub repo:
-
-- DOCKER_REPO
-- DOCKER_USER
-- DOCKER_PAT
-  - Personal Access Token
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
+For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
+contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
