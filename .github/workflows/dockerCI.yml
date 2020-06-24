@@ -55,7 +55,7 @@ jobs:
         docker pull mcr.microsoft.com/dotnet/core/aspnet:3.1-alpine
 
     - name: Build Container
-      run: docker build . -t imdb
+      run: docker build . -t imdb-import
 
     - name: Docker Push
       if: ${{ env.DOCKER_SET == 'true' }}
@@ -65,7 +65,7 @@ jobs:
         echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
 
         # tag the repo with :beta
-        docker tag imdb $DOCKER_REPO:beta
+        docker tag imdb-import $DOCKER_REPO:beta
 
         # Tag image based on repo tag if a github label
         if [[ "${{ github.ref }}" == "refs/tags/"* ]]
@@ -75,8 +75,8 @@ jobs:
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,'  | sed -e 's/^v//')
 
           # tag the image with :version and :stable
-          docker tag imdb $DOCKER_REPO:$VERSION
-          docker tag imdb $DOCKER_REPO:stable
+          docker tag imdb-import $DOCKER_REPO:$VERSION
+          docker tag imdb-import $DOCKER_REPO:latest
         fi
 
         # Push to the repo
