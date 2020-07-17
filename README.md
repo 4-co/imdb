@@ -74,6 +74,10 @@ dotnet run -- $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
 # run the IMDb Import app from Docker
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
 
+# run the IMDb Import app from Azure Container Instance
+az container create -g $Imdb_RG -n ${Imdb_Name}-import --image retaildevcrew/imdb-import --restart-policy Never \
+--command-line "dotnet imdb-import.dll ${Imdb_Name} $(eval ${Imdb_RW_Key}) ${Imdb_DB} ${Imdb_Col}"
+
 ```
 
 ## Exploring the data
