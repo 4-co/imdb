@@ -69,14 +69,16 @@ az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG --throughp
 az cosmosdb sql container create -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
 ```
 
-## Load IMDb sample data from Docker
+## Load IMDb sample data
+
+### Option 1: Load data using Docker
 
 ```bash
 # run the IMDb Import app from Docker
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
 ```
 
-## Alternatively load IMDb sample data using .NET Core (if not using Docker)
+### Option 2: Load data using .NET Core
 
 ```bash
 # run the IMDb Import app from dotnet
