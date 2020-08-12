@@ -26,11 +26,12 @@ Used with permission.
 
 - Bash shell (tested on Visual Studio Codespaces, Cloud Shell, Mac, Ubuntu, Windows with WSL2)
   - Will not work with WSL1
-- .NET Core SDK 3.1 ([download](https://dotnet.microsoft.com/download))
+- Docker ([download](https://www.docker.com/products/docker-desktop))
+- .NET Core SDK 3.x (if not using Docker) ([download](https://dotnet.microsoft.com/download))
 - Azure CLI ([download](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest))
 - Visual Studio Code (optional) ([download](https://code.visualstudio.com/download))
 
-## Create Cosmos DB Server, Database and Container and load the IMDb sample data
+## Create Cosmos DB Server, Database and Container
 
 > The `az cosmosdb sql` extension is currently in preview and is subject to change
 
@@ -66,14 +67,21 @@ az cosmosdb sql database create -a $Imdb_Name -n $Imdb_DB -g $Imdb_RG --throughp
 # create the container
 # /partitionKey is the partition key (case sensitive)
 az cosmosdb sql container create -p /partitionKey -g $Imdb_RG -a $Imdb_Name -d $Imdb_DB -n $Imdb_Col
+```
 
-# run the IMDb Import app from dotnet
-# make sure you are in the src directory
-dotnet run -- $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
+## Load IMDb sample data from Docker
 
+```bash
 # run the IMDb Import app from Docker
 docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
+```
 
+## Alternatively load IMDb sample data using .NET Core (if not using Docker)
+
+```bash
+# run the IMDb Import app from dotnet
+# make sure you have cloned this repo and are in the src directory
+dotnet run -- $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
 ```
 
 ## Exploring the data
