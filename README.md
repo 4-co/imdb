@@ -81,8 +81,13 @@ docker run -it --rm retaildevcrew/imdb-import $Imdb_Name $(eval $Imdb_RW_Key) $I
 ### Option 2: Load data using .NET Core
 
 ```bash
+# clone the repo locally
+git clone https://github.com/retaildevcrews/imdb imdb
+
+# change to the src directory
+cd imdb/src
+
 # run the IMDb Import app from dotnet
-# make sure you have cloned this repo and are in the src directory
 dotnet run -- $Imdb_Name $(eval $Imdb_RW_Key) $Imdb_DB $Imdb_Col
 ```
 
