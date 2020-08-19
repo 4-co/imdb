@@ -35,7 +35,7 @@ Used with permission.
 
 > The `az cosmosdb sql` extension is currently in preview and is subject to change
 
-Some of the environment variables that will be created will be commands for retriving sensitive values. This is intentional to avoid saving sensitive data in environment variables. For example, `export Imdb_RW_Key='az cosmosdb keys list ...'`. Make sure to run the export commands as is to save the actual command as a string.
+Some environment variables will save commands as strings instead of running the command and saving the output. This is intentional to avoid saving sensitive data in environment variables. For example, `export Imdb_RW_Key='az cosmosdb keys list ...'`. Make sure to run the export commands as is.
 
 ```bash
 
