@@ -48,7 +48,18 @@ az cosmosdb check-name-exists -n ${Imdb_Name}
 export Imdb_Location="centralus"
 export Imdb_DB="imdb"
 export Imdb_Col="movies"
+
+```
+
+> This environment variable saves the command as a string instead of running the command and saving the output. This is intentional to avoid saving sensitive data in environment variables. Make sure to run the export commands as is. When the value is needed, the command will be executed with `eval`. For example, `dotnet run -- $Imdb_Name $(eval $Imdb_RW_Key) ...`.
+
+```bash
+
 export Imdb_RW_Key='az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query primaryMasterKey -o tsv'
+
+```
+
+```bash
 
 # Resource Group Name
 export Imdb_RG=${Imdb_Name}-rg-cosmos
