@@ -41,22 +41,22 @@ assignees: ''
 - [ ] We didn’t do any design reviews.
 - [ ] We did a high-level system/architecture review.
 - [ ] We produced and reviewed architecture and component/sequence/data flow diagrams.
-- [ ] We produced and reviewed all design artifacts and solicited feedback from domain experts. 
+- [ ] We produced and reviewed all design artifacts and solicited feedback from domain experts.
 - [ ] We produced and reviewed all design artifacts and solicited feedback from domain experts. As the project progressed, we actively validated and updated our designs, based on our learnings.
 
 ### How effective were code reviews?
 - [ ] We didn’t review code changes
 - [ ] We used automated tooling to enforce basic convention/standards.
 - [ ] We used automated tooling to enforce basic convention/standards. Code changes required approval from one individual on the team.
-- [ ] We used automated tooling to enforce basic convention/standards. Code changes required approval from two or more individuals on the team. 
+- [ ] We used automated tooling to enforce basic convention/standards. Code changes required approval from two or more individuals on the team.
 - [ ] We used automated tooling to enforce basic convention/standards. Code changes required approval from two or more individuals on the team. Domain experts were added to reviews, when applicable.
 
 ### How were changes introduced to the codebase?
 - [ ] No governance; anyone could introduce changes to any part/branch of the codebase.
 - [ ] Branches were used to isolate new changes and folded into an upstream branch via Pull Request.
 - [ ] Branches were used to isolate new changes and folded into an upstream branch via Pull Request. Pull Requests were scoped to smaller, more granular changes.
-- [ ] Branches were used to isolate new changes. Pull Requests were used to fold changes into a primary working branch. Multiple upstream branches were used to manage changes. Master is always shippable. Branch policies and/or commit hooks were in place.
-- [ ] Branches were used to isolate new changes. Pull Requests were used to fold changes into a primary working branch. Branch names and commit message(s) follow a convention and always reference back to a work item. Multiple upstream branches were used to manage/validate/promote changes. Master represents `last known good` and is always shippable. Branch policies and/or commit hooks were in place.
+- [ ] Branches were used to isolate new changes. Pull Requests were used to fold changes into a primary working branch. Multiple upstream branches were used to manage changes. Main is always shippable. Branch policies and/or commit hooks were in place.
+- [ ] Branches were used to isolate new changes. Pull Requests were used to fold changes into a primary working branch. Branch names and commit message(s) follow a convention and always reference back to a work item. Multiple upstream branches were used to manage/validate/promote changes. Main represents `last known good` and is always shippable. Branch policies and/or commit hooks were in place.
 
 ### How rigorous was the code validation?
 - [ ] We did not do any testing.
