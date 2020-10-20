@@ -44,9 +44,9 @@ jobs:
         # check that all Docker secrets are set
         if [[ "${{ secrets.DOCKER_PAT }}" != "" && "${{ secrets.DOCKER_REPO }}" != "" && "${{ secrets.DOCKER_USER }}" != "" ]];
         then
-          echo "::set-env name=DOCKER_SET::true"
+          echo "DOCKER_SET=true" >> $GITHUB_ENV
         fi
-        
+
     - name: Docker Pull
       run: |
         # Pull the latest image if needed
