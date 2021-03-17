@@ -62,7 +62,7 @@ export Imdb_RW_Key='az cosmosdb keys list -n $Imdb_Name -g $Imdb_RG --query prim
 ```bash
 
 # Resource Group Name
-export Imdb_RG=${Imdb_Name}-rg-cosmos
+export Imdb_RG=${Imdb_Name}-cosmos-rg
 
 # create a new resource group
 az group create -n $Imdb_RG -l $Imdb_Location
