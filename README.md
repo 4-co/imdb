@@ -31,7 +31,9 @@ Used with permission.
 - Azure CLI ([download](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest))
 - Visual Studio Code (optional) ([download](https://code.visualstudio.com/download))
 
-## Create Cosmos DB Server, Database and Container
+> **Note**: If you are coming to here from the AKS readme, skip to [Create Cosmos DB Server, Database and Container](#create-cosmos-db-server-database-and-container).
+
+## Create the Cosmos DB resource group
 
 > The `az cosmosdb sql` extension is currently in preview and is subject to change
 
@@ -41,7 +43,7 @@ Used with permission.
 # do not use punctuation or uppercase (a-z, 0-9)
 export Imdb_Name={your Cosmos DB name}
 
-## if true, change name to avoid DNS failure on create
+## if true, change name to avoid DNS failure on when creating the Cosmos DB instance
 az cosmosdb check-name-exists -n ${Imdb_Name}
 
 # set environment variables
@@ -66,6 +68,12 @@ export Imdb_RG=${Imdb_Name}-cosmos-rg
 
 # create a new resource group
 az group create -n $Imdb_RG -l $Imdb_Location
+
+```
+
+## Create Cosmos DB Server, Database and Container
+
+```bash
 
 # create the Cosmos DB server
 # this command takes several minutes to run
