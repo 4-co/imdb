@@ -31,11 +31,11 @@ Used with permission.
 - Azure CLI ([download](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest))
 - Visual Studio Code (optional) ([download](https://code.visualstudio.com/download))
 
-> **Note**: If you are coming to here from the AKS readme, skip to [Create Cosmos DB Server, Database and Container](#create-cosmos-db-server-database-and-container).
-
 ## Create the Cosmos DB resource group
 
-> The `az cosmosdb sql` extension is currently in preview and is subject to change
+> The `az cosmosdb sql` extension is currently in preview and is subject to change.
+>
+>  **Note**: If you are coming to here from the AKS readme and have already created the resource group for your Cosmos DB instance, skip to [Create Cosmos DB Server, Database and Container](#create-cosmos-db-server-database-and-container).
 
 ```bash
 
